@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cotizador Actuarial — Primas Puras | Mortalidad Dinámica Argentina</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --azul: #1F497D; --azul-claro: #2E74B5; --verde: #1B7837; --rojo: #C62828;
+      --gris: #f8f9fa; --borde: #dee2e6;
+    }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; color: #2d3748; }
+    .hero {
+      background: linear-gradient(135deg, #1F497D 0%, #2E74B5 50%, #01665E 100%);
+      color: white; padding: 2rem 0;
+    }
+    .hero h1 { font-weight: 800; letter-spacing: -0.5px; }
+    .hero .subtitle { opacity: 0.85; font-size: 1rem; }
+    .kpi-card {
+      background: white; border-radius: 12px; padding: 1.2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+      border-left: 4px solid var(--azul-claro);
+      transition: transform .2s;
+    }
+    .kpi-card:hover { transform: translateY(-3px); }
+    .kpi-card .value { font-size: 1.6rem; font-weight: 700; color: var(--azul); }
+    .kpi-card .label { font-size: 0.8rem; color: #718096; text-transform: uppercase; letter-spacing: .5px; }
+    .section-card {
+      background: white; border-radius: 12px; padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06); margin-bottom: 1.5rem;
+    }
+    .section-title { font-weight: 700; color: var(--azul); border-bottom: 2px solid var(--azul-claro);
+                      padding-bottom: .5rem; margin-bottom: 1rem; }
+    .nav-tabs .nav-link { color: var(--azul); font-weight: 500; }
+    .nav-tabs .nav-link.active { background: var(--azul); color: white; border-color: var(--azul); }
+    .model-badge-LC        { background: #2166AC; color: white; }
+    .model-badge-GLO       { background: #4DAC26; color: white; }
+    .model-badge-Ensemble  { background: #D6604D; color: white; }
+    .model-badge-MMDe      { background: #762A83; color: white; }
+    .model-badge-MMDp      { background: #B8530A; color: white; }
+    .table thead th { background: var(--azul); color: white; font-size: 0.82rem; vertical-align: middle; }
+    .table tbody td { font-size: 0.85rem; vertical-align: middle; }
+    .table-warning td { background-color: #fff3cd !important; }
+    .formula-box {
+      background: #f0f4f8; border-left: 4px solid var(--azul-claro);
+      border-radius: 6px; padding: 1rem; font-family: 'Courier New', monospace;
+      font-size: 0.9rem; line-height: 1.8;
+    }
+    .config-panel {
+      background: #e8f4fd; border-radius: 10px; padding: 1rem;
+      border: 1px solid #bee3f8;
+    }
+    .cotizador-result {
+      background: linear-gradient(135deg, #1F497D, #2E74B5);
+      color: white; border-radius: 10px; padding: 1.2rem;
+    }
+    .cotizador-result .prima-val { font-size: 1.5rem; font-weight: 800; }
+    .spinner-overlay { display:none; position:fixed; top:0;left:0;width:100%;height:100%;
+                        background:rgba(255,255,255,.7); z-index:9999; justify-content:center;align-items:center; }
+    footer { background: var(--azul); color: rgba(255,255,255,.8); padding: 1.5rem 0; margin-top: 3rem; }
+    @media print {
+      .no-print { display: none; }
+      .section-card { box-shadow: none; border: 1px solid #ddd; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Hero Header -->
+<div class="hero">
+  <div class="container">
+    <div class="row align-items-center">
+      <div class="col-lg-8">
+        <h1 class="mb-1">🏦 Cotizador Actuarial de Prima Pura</h1>
+        <p class="subtitle mb-2">
+          Comparación de primas para Seguros de Vida bajo 5 modelos de mortalidad —
+          Lee-Carter · GLO · Ensemble · MMD Estándar · MMD Personalizado
+        </p>
+        <span class="badge bg-light text-dark me-1">Argentina 2023</span>
+        <span class="badge bg-light text-dark me-1">i = 4%</span>
+        <span class="badge bg-light text-dark me-1">Capital: $10,000,000</span>
+        <span class="badge bg-light text-dark">Duración: 20 años</span>
+      </div>
+      <div class="col-lg-4 text-end d-none d-lg-block">
+        <div style="font-size:4rem; opacity:.3;">📊</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container mt-4">
+
+  <!-- KPI Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="kpi-card">
+        <div class="value">16</div>
+        <div class="label">Asegurados en nómina</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card" style="border-left-color:#4DAC26">
+        <div class="value">5</div>
+        <div class="label">Modelos de mortalidad</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card" style="border-left-color:#D6604D">
+        <div class="value">4</div>
+        <div class="label">Productos de seguro</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-card" style="border-left-color:#762A83">
+        <div class="value">320</div>
+        <div class="label">Primas calculadas</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modelos Overview -->
+  <div class="section-card mb-4">
+    <h5 class="section-title">📐 Modelos incluidos y e(0) de referencia</h5>
+    <div class="row g-2">
+      <div class="col-md-4 col-lg-2 text-center">
+        <span class="badge model-badge-LC px-3 py-2 fs-6 mb-1">Lee-Carter</span><br>
+        <small>e(0) M: <b>73.48</b> años</small><br>
+        <small>e(0) F: <b>78.51</b> años</small><br>
+        <small class="text-muted">Solo edad/sexo</small>
+      </div>
+      <div class="col-md-4 col-lg-2 text-center">
+        <span class="badge model-badge-GLO px-3 py-2 fs-6 mb-1">GLO</span><br>
+        <small>e(0) M: <b>75.52</b> años</small><br>
+        <small>e(0) F: <b>80.45</b> años</small><br>
+        <small class="text-muted">Solo edad/sexo</small>
+      </div>
+      <div class="col-md-4 col-lg-2 text-center">
+        <span class="badge model-badge-Ensemble px-3 py-2 fs-6 mb-1">Ensemble</span><br>
+        <small>e(0) M: <b>73.17</b> años</small><br>
+        <small>e(0) F: <b>78.27</b> años</small><br>
+        <small class="text-muted">Solo edad/sexo</small>
+      </div>
+      <div class="col-md-4 col-lg-3 text-center">
+        <span class="badge model-badge-MMDe px-3 py-2 fs-6 mb-1">MMD Estándar</span><br>
+        <small>e(0) M: <b>73.16</b> años</small><br>
+        <small>e(0) F: <b>78.26</b> años</small><br>
+        <small class="text-muted">= Ensemble NAC</small>
+      </div>
+      <div class="col-md-4 col-lg-3 text-center">
+        <span class="badge model-badge-MMDp px-3 py-2 fs-6 mb-1">MMD Personalizado</span><br>
+        <small>e(0) varía por perfil</small><br>
+        <small>Rango M: 55–85 años</small><br>
+        <small class="text-muted fst-italic">Región + Riesgo + Eco</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs principales -->
+  <ul class="nav nav-tabs mb-0" id="mainTabs" role="tablist">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-nomina">📋 Nómina</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-primas">💲 Primas por Persona</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-graficos">📊 Gráficos</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-cotizador">⚡ Cotizador Individual</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-formulas">📐 Fórmulas</a></li>
+  </ul>
+
+  <div class="tab-content section-card" style="border-radius:0 12px 12px 12px; margin-top:0">
+
+    <!-- Tab 1: Nómina -->
+    <div class="tab-pane fade show active" id="tab-nomina">
+      <h5 class="section-title mt-2">📋 Nómina de Asegurados</h5>
+      <p class="text-muted small mb-3">
+        16 personas con características individuales generadas aleatoriamente.
+        Capital asegurado y duración idénticos para todos: <b>$10,000,000 / 20 años</b>.
+        Los modelos estáticos (LC, GLO, Ensemble) solo distinguen edad y sexo;
+        el MMD Personalizado incorpora región, grupo de riesgo y escenario económico.
+      </p>
+      <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle">
+          <thead>
+            <tr>
+              <th class="text-center">#</th><th>Nombre</th><th class="text-center">Edad</th>
+              <th class="text-center">Sexo</th><th class="text-center">Región</th>
+              <th>Nombre Región</th><th>Grupo de Riesgo</th><th>Escenario Eco.</th>
+            </tr>
+          </thead>
+          <tbody>
+    <tr>
+      <td class="fw-bold text-center">1</td>
+      <td>Alejandro García</td>
+      <td class="text-center">28</td>
+      <td class="text-center"><span class="badge bg-primary">M</span></td>
+      <td class="text-center"><span class="badge bg-secondary">R01</span></td>
+      <td class="small">CABA</td>
+      <td class="small" style="max-width:180px">Obesidad / Sedentarismo</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">2</td>
+      <td>Valentina García</td>
+      <td class="text-center">35</td>
+      <td class="text-center"><span class="badge bg-danger">F</span></td>
+      <td class="text-center"><span class="badge bg-secondary">R03</span></td>
+      <td class="small">NOA</td>
+      <td class="small" style="max-width:180px">Bajo riesgo (oficina, activo)</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">3</td>
+      <td>Carlos López</td>
+      <td class="text-center">42</td>
+      <td class="text-center"><span class="badge bg-primary">M</span></td>
+      <td class="text-center"><span class="badge bg-secondary">R01</span></td>
+      <td class="small">CABA</td>
+      <td class="small" style="max-width:180px">Trabajador de salud (exposición COV…</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">4</td>
+      <td>Sofía López</td>
+      <td class="text-center">48</td>
+      <td class="text-center"><span class="badge bg-danger">F</span></td>
+      <td class="text-center"><span class="badge bg-secondary">R01</span></td>
+      <td class="small">CABA</td>
+      <td class="small" style="max-width:180px">Trabajador de salud (exposición COV…</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">5</td>
+      <td>Diego Martínez</td>
+      <td class="text-center">52</td>
+      <td class="text-center"><span class="badge bg-primary">M</span></td>
+      <td class="text-center"><span class="badge bg-secondary">R04</span></td>
+      <td class="small">NEA</td>
+      <td class="small" style="max-width:180px">Nivel socioeconómico bajo</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">6</td>
+      <td>Eduardo Rodríguez</td>
+      <td class="text-center">30</td>
+      <td class="text-center"><span class="badge bg-primary">M</span></td>
+      <td class="text-center"><span class="badge bg-secondary">R05</span></td>
+      <td class="small">Cuyo</td>
+      <td class="small" style="max-width:180px">Riesgo moderado (construcción, tran…</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">7</td>
+      <td>Camila Martínez</td>
+      <td class="text-center">39</td>
+      <td class="text-center"><span class="badge bg-danger">F</span></td>
+      <td class="text-center"><span class="badge bg-secondary">R07</span></td>
+      <td class="small">Buenos Aires (GBA)</td>
+      <td class="small" style="max-width:180px">Trabajador de salud (exposición COV…</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">8</td>
+      <td>Fernando González</td>
+      <td class="text-center">55</td>
+      <td class="text-center"><span class="badge bg-primary">M</span></td>
+      <td class="text-center"><span class="badge bg-secondary">NAC</span></td>
+      <td class="small">Nacional</td>
+      <td class="small" style="max-width:180px">Nivel socioeconómico bajo</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">9</td>
+      <td>Lucía Rodríguez</td>
+      <td class="text-center">45</td>
+      <td class="text-center"><span class="badge bg-danger">F</span></td>
+      <td class="text-center"><span class="badge bg-secondary">R02</span></td>
+      <td class="small">Pampeana</td>
+      <td class="small" style="max-width:180px">Fumador habitual</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">10</td>
+      <td>Gustavo Hernández</td>
+      <td class="text-center">33</td>
+      <td class="text-center"><span class="badge bg-primary">M</span></td>
+      <td class="text-center"><span class="badge bg-secondary">NAC</span></td>
+      <td class="small">Nacional</td>
+      <td class="small" style="max-width:180px">Bajo riesgo (oficina, activo)</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">11</td>
+      <td>María González</td>
+      <td class="text-center">58</td>
+      <td class="text-center"><span class="badge bg-danger">F</span></td>
+      <td class="text-center"><span class="badge bg-secondary">R02</span></td>
+      <td class="small">Pampeana</td>
+      <td class="small" style="max-width:180px">Nivel socioeconómico bajo</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">12</td>
+      <td>Hernán Díaz</td>
+      <td class="text-center">61</td>
+      <td class="text-center"><span class="badge bg-primary">M</span></td>
+      <td class="text-center"><span class="badge bg-secondary">R05</span></td>
+      <td class="small">Cuyo</td>
+      <td class="small" style="max-width:180px">Nivel socioeconómico bajo</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">13</td>
+      <td>Javier Torres</td>
+      <td class="text-center">47</td>
+      <td class="text-center"><span class="badge bg-primary">M</span></td>
+      <td class="text-center"><span class="badge bg-secondary">R04</span></td>
+      <td class="small">NEA</td>
+      <td class="small" style="max-width:180px">Trabajador de salud (exposición COV…</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">14</td>
+      <td>Ana Fernández</td>
+      <td class="text-center">38</td>
+      <td class="text-center"><span class="badge bg-danger">F</span></td>
+      <td class="text-center"><span class="badge bg-secondary">R03</span></td>
+      <td class="small">NOA</td>
+      <td class="small" style="max-width:180px">Obesidad / Sedentarismo</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">15</td>
+      <td>Leonardo Romero</td>
+      <td class="text-center">25</td>
+      <td class="text-center"><span class="badge bg-primary">M</span></td>
+      <td class="text-center"><span class="badge bg-secondary">R03</span></td>
+      <td class="small">NOA</td>
+      <td class="small" style="max-width:180px">Riesgo alto (minería, industria pes…</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr>
+    <tr>
+      <td class="fw-bold text-center">16</td>
+      <td>Paula Torres</td>
+      <td class="text-center">50</td>
+      <td class="text-center"><span class="badge bg-danger">F</span></td>
+      <td class="text-center"><span class="badge bg-secondary">R01</span></td>
+      <td class="small">CABA</td>
+      <td class="small" style="max-width:180px">Nivel socioeconómico bajo</td>
+      <td class="text-center text-muted">Base 2023</td>
+    </tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 2: Primas -->
+    <div class="tab-pane fade" id="tab-primas">
+      <h5 class="section-title mt-2">💲 Primas Puras por Persona y Modelo</h5>
+      <div class="alert alert-info small mb-3">
+        <b>Nota metodológica:</b> Los valores en miles de pesos argentinos (K ARS).
+        Tasa técnica i = 4%. Capital: $10,000,000.
+        <span class="badge bg-warning text-dark">MMD Personalizado</span> incorpora perfil individual del asegurado.
+        Los modelos estáticos dan la misma prima para igual edad/sexo sin importar región o riesgo.
+      </div>
+      <div class="mb-2">
+        <span class="badge model-badge-LC me-1">LC</span>
+        <span class="badge model-badge-GLO me-1">GLO</span>
+        <span class="badge model-badge-Ensemble me-1">Ensemble</span>
+        <span class="badge model-badge-MMDe me-1">MMD Est.</span>
+        <span class="badge model-badge-MMDp me-1">MMD Pers.</span>
+        <span class="ms-3 text-muted small">* Col. amarilla = MMD Personalizado</span>
+      </div>
+      <div class="table-responsive" style="max-height:600px;overflow-y:auto">
+        <table class="table table-bordered table-sm align-middle" id="tablaPremas">
+          <thead>
+            <tr>
+              <th class="text-center">#</th>
+              <th>Nombre</th>
+              <th style="max-width:120px">Grupo Riesgo</th>
+              <th class="text-center">Δ MMD</th>
+              <th>Producto</th>
+              <th class="text-center model-badge-LC">Lee-Carter</th>
+              <th class="text-center model-badge-GLO">GLO</th>
+              <th class="text-center model-badge-Ensemble">Ensemble</th>
+              <th class="text-center model-badge-MMDe">MMD Est.</th>
+              <th class="text-center model-badge-MMDp">MMD Pers.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">1</td>
+              <td rowspan="4" class="align-middle">Alejandro<br>
+                <small class="text-muted">M,28a<br>R01</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Obesidad / Sedentarismo…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-danger">+25.3%</span></td>
+              <td>🛡️ Temporario</td><td>$18.7K</td><td>$17.9K</td><td>$21.4K</td><td>$21.4K</td><td class="table-warning fw-bold">$26.8K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$332.9K</td><td>$332.3K</td><td>$334.1K</td><td>$334.1K</td><td class="table-warning fw-bold">$336.0K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$83.8K</td><td>$78.9K</td><td>$88.5K</td><td>$88.5K</td><td class="table-warning fw-bold">$102.2K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$21350.0K</td><td>$21573.5K</td><td>$21137.0K</td><td>$21136.5K</td><td class="table-warning fw-bold">$20539.8K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">2</td>
+              <td rowspan="4" class="align-middle">Valentina<br>
+                <small class="text-muted">F,35a<br>R03</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Bajo riesgo (oficina, act…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-success">-9.7%</span></td>
+              <td>🛡️ Temporario</td><td>$18.6K</td><td>$17.2K</td><td>$21.9K</td><td>$21.9K</td><td class="table-warning fw-bold">$19.8K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$331.6K</td><td>$331.2K</td><td>$333.3K</td><td>$333.3K</td><td class="table-warning fw-bold">$332.3K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$90.3K</td><td>$84.3K</td><td>$94.4K</td><td>$94.4K</td><td class="table-warning fw-bold">$91.8K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$21057.8K</td><td>$21325.8K</td><td>$20877.1K</td><td>$20876.4K</td><td class="table-warning fw-bold">$20990.0K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">3</td>
+              <td rowspan="4" class="align-middle">Carlos<br>
+                <small class="text-muted">M,42a<br>R01</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Trabajador de salud (expo…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-danger">+10.9%</span></td>
+              <td>🛡️ Temporario</td><td>$56.6K</td><td>$50.2K</td><td>$65.2K</td><td>$65.2K</td><td class="table-warning fw-bold">$72.3K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$348.0K</td><td>$345.7K</td><td>$352.1K</td><td>$352.1K</td><td class="table-warning fw-bold">$355.4K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$153.9K</td><td>$143.5K</td><td>$162.7K</td><td>$162.7K</td><td class="table-warning fw-bold">$166.6K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$18570.7K</td><td>$18935.5K</td><td>$18272.2K</td><td>$18271.4K</td><td class="table-warning fw-bold">$18140.6K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">4</td>
+              <td rowspan="4" class="align-middle">Sofía<br>
+                <small class="text-muted">F,48a<br>R01</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Trabajador de salud (expo…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-danger">+8.5%</span></td>
+              <td>🛡️ Temporario</td><td>$59.4K</td><td>$50.8K</td><td>$65.7K</td><td>$65.7K</td><td class="table-warning fw-bold">$71.3K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$350.5K</td><td>$346.4K</td><td>$353.6K</td><td>$353.6K</td><td class="table-warning fw-bold">$357.1K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$163.8K</td><td>$150.9K</td><td>$170.2K</td><td>$170.2K</td><td class="table-warning fw-bold">$172.8K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$18235.5K</td><td>$18673.1K</td><td>$18024.1K</td><td>$18023.0K</td><td class="table-warning fw-bold">$17941.3K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">5</td>
+              <td rowspan="4" class="align-middle">Diego<br>
+                <small class="text-muted">M,52a<br>R04</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Nivel socioeconómico bajo…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-success">-14.0%</span></td>
+              <td>🛡️ Temporario</td><td>$143.0K</td><td>$125.3K</td><td>$162.3K</td><td>$162.3K</td><td class="table-warning fw-bold">$139.5K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$392.1K</td><td>$382.5K</td><td>$402.3K</td><td>$402.3K</td><td class="table-warning fw-bold">$391.8K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$252.3K</td><td>$232.0K</td><td>$266.4K</td><td>$266.5K</td><td class="table-warning fw-bold">$240.1K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$15701.9K</td><td>$16216.3K</td><td>$15359.5K</td><td>$15358.2K</td><td class="table-warning fw-bold">$16006.9K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">6</td>
+              <td rowspan="4" class="align-middle">Eduardo<br>
+                <small class="text-muted">M,30a<br>R05</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Riesgo moderado (construc…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-danger">+169.3%</span></td>
+              <td>🛡️ Temporario</td><td>$20.8K</td><td>$19.9K</td><td>$24.0K</td><td>$24.0K</td><td class="table-warning fw-bold">$64.7K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$333.7K</td><td>$333.2K</td><td>$335.2K</td><td>$335.2K</td><td class="table-warning fw-bold">$356.5K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$90.8K</td><td>$85.5K</td><td>$96.0K</td><td>$96.0K</td><td class="table-warning fw-bold">$153.7K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$21033.1K</td><td>$21269.5K</td><td>$20805.2K</td><td>$20804.7K</td><td class="table-warning fw-bold">$18576.2K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">7</td>
+              <td rowspan="4" class="align-middle">Camila<br>
+                <small class="text-muted">F,39a<br>R07</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Trabajador de salud (expo…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-danger">+5.4%</span></td>
+              <td>🛡️ Temporario</td><td>$26.4K</td><td>$23.5K</td><td>$30.4K</td><td>$30.4K</td><td class="table-warning fw-bold">$32.1K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$335.0K</td><td>$334.1K</td><td>$337.3K</td><td>$337.3K</td><td class="table-warning fw-bold">$338.1K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$107.8K</td><td>$100.4K</td><td>$112.7K</td><td>$112.7K</td><td class="table-warning fw-bold">$111.8K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$20308.0K</td><td>$20619.9K</td><td>$20108.9K</td><td>$20108.2K</td><td class="table-warning fw-bold">$20143.3K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">8</td>
+              <td rowspan="4" class="align-middle">Fernando<br>
+                <small class="text-muted">M,55a<br>NAC</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Nivel socioeconómico bajo…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-danger">+31.3%</span></td>
+              <td>🛡️ Temporario</td><td>$183.4K</td><td>$162.3K</td><td>$207.7K</td><td>$207.8K</td><td class="table-warning fw-bold">$272.8K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$414.9K</td><td>$402.2K</td><td>$428.0K</td><td>$428.0K</td><td class="table-warning fw-bold">$467.2K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$294.2K</td><td>$269.9K</td><td>$310.4K</td><td>$310.5K</td><td class="table-warning fw-bold">$365.3K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$14730.5K</td><td>$15279.2K</td><td>$14388.2K</td><td>$14386.7K</td><td class="table-warning fw-bold">$13334.2K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">9</td>
+              <td rowspan="4" class="align-middle">Lucía<br>
+                <small class="text-muted">F,45a<br>R02</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Fumador habitual…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-danger">+157.2%</span></td>
+              <td>🛡️ Temporario</td><td>$45.5K</td><td>$39.0K</td><td>$50.7K</td><td>$50.7K</td><td class="table-warning fw-bold">$130.4K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$343.8K</td><td>$341.1K</td><td>$346.7K</td><td>$346.7K</td><td class="table-warning fw-bold">$383.7K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$142.0K</td><td>$131.4K</td><td>$148.0K</td><td>$148.0K</td><td class="table-warning fw-bold">$239.1K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$18988.0K</td><td>$19381.0K</td><td>$18776.9K</td><td>$18775.9K</td><td class="table-warning fw-bold">$16034.0K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">10</td>
+              <td rowspan="4" class="align-middle">Gustavo<br>
+                <small class="text-muted">M,33a<br>NAC</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Bajo riesgo (oficina, act…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-success">-11.9%</span></td>
+              <td>🛡️ Temporario</td><td>$25.4K</td><td>$24.0K</td><td>$29.5K</td><td>$29.5K</td><td class="table-warning fw-bold">$25.9K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$335.3K</td><td>$334.9K</td><td>$337.3K</td><td>$337.3K</td><td class="table-warning fw-bold">$335.6K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$102.9K</td><td>$96.8K</td><td>$108.8K</td><td>$108.9K</td><td class="table-warning fw-bold">$103.7K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$20512.5K</td><td>$20772.5K</td><td>$20265.0K</td><td>$20264.4K</td><td class="table-warning fw-bold">$20477.6K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">11</td>
+              <td rowspan="4" class="align-middle">María<br>
+                <small class="text-muted">F,58a<br>R02</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Nivel socioeconómico bajo…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-danger">+47.0%</span></td>
+              <td>🛡️ Temporario</td><td>$140.5K</td><td>$124.1K</td><td>$156.4K</td><td>$156.4K</td><td class="table-warning fw-bold">$229.9K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$391.1K</td><td>$381.6K</td><td>$398.5K</td><td>$398.5K</td><td class="table-warning fw-bold">$439.5K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$269.7K</td><td>$246.6K</td><td>$279.6K</td><td>$279.7K</td><td class="table-warning fw-bold">$341.0K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$15283.5K</td><td>$15841.6K</td><td>$15054.7K</td><td>$15053.0K</td><td class="table-warning fw-bold">$13781.6K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">12</td>
+              <td rowspan="4" class="align-middle">Hernán<br>
+                <small class="text-muted">M,61a<br>R05</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Nivel socioeconómico bajo…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-danger">+102.6%</span></td>
+              <td>🛡️ Temporario</td><td>$295.3K</td><td>$267.4K</td><td>$330.6K</td><td>$330.7K</td><td class="table-warning fw-bold">$669.9K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$478.4K</td><td>$460.2K</td><td>$500.2K</td><td>$500.2K</td><td class="table-warning fw-bold">$741.3K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$402.0K</td><td>$367.4K</td><td>$422.0K</td><td>$422.1K</td><td class="table-warning fw-bold">$711.0K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$12712.3K</td><td>$13297.0K</td><td>$12397.8K</td><td>$12395.9K</td><td class="table-warning fw-bold">$9127.5K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">13</td>
+              <td rowspan="4" class="align-middle">Javier<br>
+                <small class="text-muted">M,47a<br>R04</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Trabajador de salud (expo…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-success">-28.3%</span></td>
+              <td>🛡️ Temporario</td><td>$91.5K</td><td>$79.8K</td><td>$104.4K</td><td>$104.4K</td><td class="table-warning fw-bold">$74.8K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$364.7K</td><td>$359.4K</td><td>$371.1K</td><td>$371.1K</td><td class="table-warning fw-bold">$357.6K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$196.0K</td><td>$181.5K</td><td>$207.2K</td><td>$207.2K</td><td class="table-warning fw-bold">$168.1K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$17221.9K</td><td>$17662.8K</td><td>$16896.8K</td><td>$16895.8K</td><td class="table-warning fw-bold">$18092.3K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">14</td>
+              <td rowspan="4" class="align-middle">Ana<br>
+                <small class="text-muted">F,38a<br>R03</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Obesidad / Sedentarismo…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-danger">+50.6%</span></td>
+              <td>🛡️ Temporario</td><td>$24.2K</td><td>$21.7K</td><td>$28.0K</td><td>$28.0K</td><td class="table-warning fw-bold">$42.2K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$334.0K</td><td>$333.3K</td><td>$336.2K</td><td>$336.2K</td><td class="table-warning fw-bold">$342.7K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$103.1K</td><td>$96.0K</td><td>$107.8K</td><td>$107.8K</td><td class="table-warning fw-bold">$127.5K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$20504.8K</td><td>$20804.9K</td><td>$20309.7K</td><td>$20308.9K</td><td class="table-warning fw-bold">$19525.4K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">15</td>
+              <td rowspan="4" class="align-middle">Leonardo<br>
+                <small class="text-muted">M,25a<br>R03</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Riesgo alto (minería, ind…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-danger">+113.3%</span></td>
+              <td>🛡️ Temporario</td><td>$16.5K</td><td>$15.5K</td><td>$18.3K</td><td>$18.3K</td><td class="table-warning fw-bold">$39.1K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$332.0K</td><td>$331.3K</td><td>$332.7K</td><td>$332.7K</td><td class="table-warning fw-bold">$343.3K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$74.4K</td><td>$70.1K</td><td>$78.4K</td><td>$78.4K</td><td class="table-warning fw-bold">$115.8K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$21784.8K</td><td>$21992.7K</td><td>$21597.1K</td><td>$21596.7K</td><td class="table-warning fw-bold">$19984.5K</td></tr>
+            <tr>
+              <td rowspan="4" class="align-middle text-center fw-bold">16</td>
+              <td rowspan="4" class="align-middle">Paula<br>
+                <small class="text-muted">F,50a<br>R01</small></td>
+              <td rowspan="4" class="align-middle small" style="font-size:0.72rem">Nivel socioeconómico bajo…</td>
+              <td rowspan="4" class="align-middle text-center"><span class="badge bg-danger">+31.7%</span></td>
+              <td>🛡️ Temporario</td><td>$70.7K</td><td>$60.6K</td><td>$78.0K</td><td>$78.0K</td><td class="table-warning fw-bold">$102.6K</td>
+            </tr>
+            <tr><td>🎯 Dotal</td><td>$356.1K</td><td>$351.0K</td><td>$359.5K</td><td>$359.5K</td><td class="table-warning fw-bold">$372.4K</td></tr>
+            <tr><td>♾️ Ordinario</td><td>$180.4K</td><td>$165.9K</td><td>$187.2K</td><td>$187.3K</td><td class="table-warning fw-bold">$210.7K</td></tr>
+            <tr><td>💰 RV Prima Única</td><td>$17699.0K</td><td>$18165.8K</td><td>$17487.6K</td><td>$17486.3K</td><td class="table-warning fw-bold">$16799.0K</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 3: Gráficos -->
+    <div class="tab-pane fade" id="tab-graficos">
+      <h5 class="section-title mt-2">📊 Visualización Comparativa</h5>
+      <div class="row g-4">
+        <!-- Chart 1: Primas temporario por persona -->
+        <div class="col-12">
+          <h6 class="fw-bold text-secondary">Prima Anual — Seguro Temporario 20 años por persona y modelo</h6>
+          <canvas id="chartTemporario" height="80"></canvas>
+        </div>
+        <!-- Chart 2: Primas temporario vs dotal comparación -->
+        <div class="col-md-6">
+          <h6 class="fw-bold text-secondary">Distribución de primas por modelo (Temporario)</h6>
+          <canvas id="chartBoxplot" height="200"></canvas>
+        </div>
+        <!-- Chart 3: Diferencial MMD vs Ensemble -->
+        <div class="col-md-6">
+          <h6 class="fw-bold text-secondary">Diferencial MMD Personalizado vs Ensemble (%)</h6>
+          <canvas id="chartDiff" height="200"></canvas>
+        </div>
+        <!-- Chart 4: Comparación 4 productos (promedio nómina) -->
+        <div class="col-12">
+          <h6 class="fw-bold text-secondary">Prima promedio de la nómina por producto y modelo</h6>
+          <canvas id="chartProductos" height="70"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Cotizador Individual -->
+    <div class="tab-pane fade" id="tab-cotizador">
+      <h5 class="section-title mt-2">⚡ Cotizador Individual Interactivo</h5>
+      <p class="text-muted small mb-3">
+        Calculá la prima pura para cualquier asegurado en tiempo real.
+        Los modelos estáticos usarán solo edad y sexo; el MMD Personalizado aplicará
+        el ajuste regional, de riesgo y económico.
+      </p>
+      <div class="row g-4">
+        <div class="col-lg-5">
+          <div class="config-panel">
+            <h6 class="fw-bold mb-3">🧑 Datos del asegurado</h6>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small fw-bold">Edad</label>
+                <input type="number" id="inp-edad" class="form-control" value="40" min="18" max="79">
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold">Sexo</label>
+                <select id="inp-sexo" class="form-select">
+                  <option value="M">Masculino</option>
+                  <option value="F">Femenino</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Región</label>
+                <select id="inp-region" class="form-select">
+                  <option value="NAC">Nacional (promedio)</option>
+                  <option value="R01">R01 — CABA</option>
+                  <option value="R02">R02 — Pampeana</option>
+                  <option value="R03">R03 — NOA</option>
+                  <option value="R04">R04 — NEA (menor mortalidad)</option>
+                  <option value="R05">R05 — Cuyo (mayor mortalidad)</option>
+                  <option value="R06">R06 — Patagónica</option>
+                  <option value="R07">R07 — Buenos Aires GBA</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Grupo de riesgo</label>
+                <select id="inp-riesgo" class="form-select">
+                  <option value="Estándar">Estándar</option>
+                  <option value="Bajo riesgo (oficina, activo)">Bajo riesgo (oficina)</option>
+                  <option value="Riesgo moderado (construcción, transporte)">Riesgo moderado (construcción)</option>
+                  <option value="Riesgo alto (minería, industria pesada)">Riesgo alto (minería)</option>
+                  <option value="Fumador habitual">Fumador habitual</option>
+                  <option value="Obesidad / Sedentarismo">Obesidad / Sedentarismo</option>
+                  <option value="Nivel socioeconómico bajo">Nivel socioeconómico bajo</option>
+                  <option value="Trabajador de salud (exposición COVID)">Trabajador de salud</option>
+                  <option value="Perfil longevidad (dieta, ejercicio, no fumador)">Perfil longevidad</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Escenario económico</label>
+                <select id="inp-eco" class="form-select">
+                  <option value="Base 2023">Base 2023</option>
+                  <option value="Optimista 2025">Optimista 2025</option>
+                  <option value="Pesimista 2025">Pesimista 2025</option>
+                  <option value="Crisis económica">Crisis económica</option>
+                  <option value="Estabilización">Estabilización</option>
+                </select>
+              </div>
+            </div>
+            <hr>
+            <h6 class="fw-bold mb-3">📋 Parámetros del contrato</h6>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small fw-bold">Capital asegurado (ARS)</label>
+                <input type="number" id="inp-capital" class="form-control" value="10000000">
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold">Duración (años)</label>
+                <input type="number" id="inp-dur" class="form-control" value="20" min="1" max="40">
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold">Tasa técnica (%)</label>
+                <input type="number" id="inp-tasa" class="form-control" value="4.0" min="1" max="15" step="0.5">
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold">Renta anual (ARS)</label>
+                <input type="number" id="inp-renta" class="form-control" value="1000000">
+              </div>
+            </div>
+            <button class="btn btn-primary w-100 mt-3 fw-bold" onclick="calcularCotizacion()">
+              ⚡ Calcular Primas
+            </button>
+          </div>
+        </div>
+        <div class="col-lg-7">
+          <div id="cotizador-output">
+            <div class="text-center text-muted py-5">
+              <div style="font-size:3rem">📊</div>
+              <p>Completá los datos y hacé clic en "Calcular Primas"</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 5: Fórmulas -->
+    <div class="tab-pane fade" id="tab-formulas">
+      <h5 class="section-title mt-2">📐 Fórmulas Actuariales</h5>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <h6 class="fw-bold">Funciones de Conmutación</h6>
+          <div class="formula-box">
+            D(x) = v<sup>x</sup> · l(x)<br>
+            C(x) = v<sup>x+1</sup> · d(x)<br>
+            M(x) = Σ C(t),  t ≥ x<br>
+            N(x) = Σ D(t),  t ≥ x<br>
+            v = 1/(1+i)  [factor de descuento]
+          </div>
+        </div>
+        <div class="col-md-6">
+          <h6 class="fw-bold">Valores Actuariales Presentes</h6>
+          <div class="formula-box">
+            A<sub>x</sub> = M(x)/D(x)  [ordinario]<br>
+            A<sup>1</sup><sub>x:n̈</sub> = (M(x)−M(x+n))/D(x)  [temporario]<br>
+            A<sub>x:n̈</sub> = (M(x)−M(x+n)+D(x+n))/D(x)  [dotal]<br>
+            ä<sub>x</sub> = N(x)/D(x)  [renta vitalicia]<br>
+            ä<sub>x:n</sub> = (N(x)−N(x+n))/D(x)  [renta temporal]
+          </div>
+        </div>
+        <div class="col-md-6">
+          <h6 class="fw-bold">Primas Netas Anuales (capital C)</h6>
+          <div class="formula-box">
+            P(A<sub>x</sub>) = A<sub>x</sub>·C / ä<sub>x</sub><br>
+            P(A<sup>1</sup>) = A<sup>1</sup><sub>x:n</sub>·C / ä<sub>x:n</sub><br>
+            P(A<sub>x:n</sub>) = A<sub>x:n</sub>·C / ä<sub>x:n</sub><br>
+            PU_renta = ä<sub>x</sub>·R  [prima única]<br>
+            P_renta = ä<sub>x</sub>·R / ä<sub>x:n</sub>  [anual n años]
+          </div>
+        </div>
+        <div class="col-md-6">
+          <h6 class="fw-bold">Modelo MMD — Ajuste Personalizado</h6>
+          <div class="formula-box">
+            log μ<sub>MMD</sub>(x|θ) = log μ<sub>base</sub>(x)<br>
+            &nbsp;&nbsp; + α<sub>región</sub><br>
+            &nbsp;&nbsp; + β<sub>sal</sub>·Δsal + β<sub>inf</sub>·Δinf<br>
+            &nbsp;&nbsp; + log HR(x, grupo_riesgo)<br>
+            &nbsp;&nbsp; + δ·(t − t₀)
+          </div>
+        </div>
+      </div>
+      <div class="mt-3 p-3 bg-light rounded">
+        <b>Referencia bibliográfica:</b> Bowers, N. et al. (1997). <i>Actuarial Mathematics</i>, 2nd ed.
+        ACTEX Publications. | Dickson, D.C.M. (2013). <i>Actuarial Mathematics for Life Contingent Risks</i>.
+        Cambridge University Press. | Cox, D.R. (1972). Proportional Hazards Model. JRSS-B.
+      </div>
+    </div>
+
+  </div><!-- end tab-content -->
+
+</div><!-- end container -->
+
+<footer>
+  <div class="container">
+    <div class="row">
+      <div class="col-md-6">
+        <b>Cotizador Actuarial — Mortalidad Dinámica Argentina</b><br>
+        <small>Taller para la elaboración del trabajo final | Datos: DEIS 2015–2023</small>
+      </div>
+      <div class="col-md-6 text-end">
+        <small>Capital: $10,000,000 ARS | i = 4% | Duración: 20 años</small>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ============================================================
+// DATOS EMBEBIDOS (generados por Python)
+// ============================================================
+const CONFIG = {
+  capital: 10000000, renta: 1000000,
+  duracion: 20, tasa: 0.04,
+};
+
+const QX_TABLES = {"LC_M": [0.000891, 0.000891, 0.000891, 0.000891, 0.000891, 0.000891, 0.000891, 0.000891, 0.000891, 0.000891, 0.000891, 0.000916, 0.000941, 0.000967, 0.000994, 0.001022, 0.00105, 0.001078, 0.001108, 0.001138, 0.001169, 0.0012, 0.001232, 0.001264, 0.001297, 0.001331, 0.001365, 0.0014, 0.001434, 0.00147, 0.001506, 0.001542, 0.00158, 0.001621, 0.001666, 0.001715, 0.001771, 0.001834, 0.001907, 0.001992, 0.00209, 0.002205, 0.002341, 0.002501, 0.002692, 0.002919, 0.003189, 0.003506, 0.003875, 0.004303, 0.004793, 0.005352, 0.005984, 0.006692, 0.007479, 0.008343, 0.009287, 0.010313, 0.011423, 0.01262, 0.013905, 0.015278, 0.016737, 0.018281, 0.019906, 0.021607, 0.023385, 0.025257, 0.027241, 0.029363, 0.031654, 0.034152, 0.036907, 0.039976, 0.043432, 0.047362, 0.051847, 0.056952, 0.062744, 0.069298, 0.076693, 0.085009, 0.09433, 0.104737, 0.116308, 0.197998, 0.219925, 0.24389, 0.269987, 0.298287, 0.328831, 0.361626, 0.396628, 0.433736, 0.472784, 0.513525, 0.555631, 0.598684, 0.632121, 0.632121, 1.0], "LC_F": [0.000609, 0.000609, 0.000609, 0.000609, 0.000609, 0.000609, 0.000609, 0.000609, 0.000609, 0.000609, 0.000609, 0.000605, 0.000602, 0.000599, 0.000596, 0.000594, 0.000592, 0.000592, 0.000592, 0.000593, 0.000596, 0.0006, 0.000605, 0.000612, 0.000621, 0.000632, 0.000646, 0.000662, 0.000681, 0.000704, 0.00073, 0.000761, 0.000796, 0.000837, 0.000882, 0.000934, 0.000992, 0.001058, 0.001131, 0.001213, 0.001305, 0.001408, 0.001522, 0.00165, 0.001793, 0.001953, 0.00213, 0.002328, 0.002549, 0.002794, 0.003066, 0.003367, 0.003702, 0.004072, 0.00448, 0.00493, 0.005425, 0.005968, 0.006561, 0.007206, 0.007905, 0.00866, 0.009469, 0.010333, 0.011249, 0.012214, 0.013234, 0.014321, 0.015494, 0.016779, 0.018204, 0.019807, 0.021637, 0.023752, 0.02623, 0.029167, 0.032661, 0.036802, 0.041696, 0.047461, 0.054232, 0.062157, 0.071398, 0.082123, 0.094509, 0.148078, 0.16593, 0.185692, 0.2075, 0.231486, 0.257766, 0.286437, 0.317562, 0.351165, 0.387217, 0.42562, 0.466202, 0.508698, 0.55274, 0.597857, 1.0], "GLO_M": [0.000432, 0.000449, 0.000467, 0.000485, 0.000504, 0.00052, 0.000541, 0.000563, 0.000587, 0.000611, 0.000637, 0.000663, 0.000691, 0.000719, 0.000749, 0.00078, 0.000812, 0.000845, 0.00088, 0.000915, 0.000952, 0.00099, 0.00103, 0.00107, 0.001112, 0.001154, 0.001198, 0.001243, 0.001289, 0.001337, 0.001385, 0.001434, 0.001484, 0.001537, 0.001593, 0.001653, 0.001718, 0.001789, 0.001868, 0.001955, 0.002054, 0.002165, 0.002293, 0.002439, 0.002607, 0.002802, 0.00303, 0.003293, 0.003595, 0.003941, 0.004334, 0.004779, 0.005281, 0.005843, 0.00647, 0.007165, 0.007931, 0.008772, 0.009693, 0.0107, 0.011797, 0.012988, 0.014276, 0.015665, 0.017156, 0.01875, 0.020449, 0.022262, 0.024205, 0.026298, 0.028564, 0.03103, 0.033733, 0.036713, 0.040022, 0.043721, 0.047878, 0.052548, 0.057785, 0.063648, 0.070198, 0.079054, 0.086461, 0.094528, 0.103307, 0.112853, 0.123223, 0.134479, 0.146683, 0.159899, 0.174194, 0.189635, 0.20629, 0.224227, 0.243512, 0.264209, 0.286378, 0.310075, 0.335349, 0.362241, 1.0], "GLO_F": [0.000393, 0.0004, 0.000407, 0.000415, 0.000422, 0.00046, 0.000463, 0.000465, 0.000467, 0.000469, 0.00047, 0.000472, 0.000473, 0.000475, 0.000478, 0.00048, 0.000483, 0.000487, 0.000492, 0.000498, 0.000504, 0.000512, 0.000521, 0.000532, 0.000545, 0.000559, 0.000576, 0.000596, 0.000618, 0.000644, 0.000674, 0.000708, 0.000747, 0.000791, 0.000841, 0.000896, 0.000958, 0.001026, 0.001102, 0.001185, 0.001276, 0.001375, 0.001484, 0.001601, 0.001728, 0.001864, 0.00201, 0.002167, 0.002336, 0.00252, 0.002721, 0.002942, 0.003186, 0.003457, 0.00376, 0.004101, 0.004487, 0.004921, 0.005409, 0.005953, 0.006557, 0.007224, 0.007956, 0.008752, 0.009614, 0.010536, 0.011519, 0.012569, 0.013703, 0.01494, 0.016304, 0.017826, 0.019546, 0.021511, 0.023785, 0.026446, 0.029587, 0.033292, 0.037649, 0.042761, 0.04874, 0.058537, 0.065304, 0.072824, 0.081173, 0.090434, 0.100697, 0.112056, 0.124612, 0.138472, 0.153747, 0.170553, 0.189007, 0.209231, 0.231341, 0.255455, 0.281682, 0.310123, 0.340867, 0.373983, 1.0], "Ensemble_M": [0.000282, 0.000297, 0.000314, 0.000331, 0.00035, 0.000354, 0.000376, 0.0004, 0.000426, 0.000454, 0.000483, 0.000519, 0.000556, 0.000597, 0.000639, 0.000685, 0.000733, 0.000784, 0.000838, 0.000894, 0.000953, 0.001015, 0.001079, 0.001144, 0.001212, 0.001281, 0.001351, 0.001422, 0.001492, 0.001563, 0.001632, 0.0017, 0.001767, 0.001834, 0.001903, 0.001975, 0.002051, 0.002134, 0.002226, 0.002329, 0.002446, 0.002581, 0.002738, 0.002922, 0.00314, 0.0034, 0.003711, 0.004078, 0.004507, 0.005004, 0.005576, 0.006227, 0.006961, 0.007782, 0.008689, 0.009678, 0.010746, 0.011894, 0.013123, 0.014439, 0.015845, 0.017343, 0.01894, 0.020641, 0.02245, 0.024376, 0.026427, 0.02862, 0.030971, 0.0335, 0.036233, 0.039199, 0.042432, 0.045975, 0.049875, 0.054191, 0.05898, 0.064289, 0.070166, 0.076662, 0.083829, 0.092302, 0.100703, 0.109859, 0.119819, 0.146429, 0.159702, 0.174065, 0.189587, 0.206336, 0.224382, 0.243791, 0.264629, 0.286957, 0.310832, 0.336303, 0.363412, 0.392192, 0.412623, 0.432571, 1.0], "Ensemble_F": [0.00023, 0.000239, 0.000247, 0.000257, 0.000266, 0.000289, 0.000297, 0.000305, 0.000314, 0.000322, 0.000331, 0.000339, 0.000348, 0.000357, 0.000367, 0.000377, 0.000388, 0.000399, 0.000412, 0.000426, 0.00044, 0.000457, 0.000475, 0.000495, 0.000517, 0.000541, 0.000569, 0.0006, 0.000634, 0.000674, 0.000718, 0.000768, 0.000825, 0.000889, 0.000961, 0.00104, 0.001129, 0.001227, 0.001336, 0.001455, 0.001585, 0.001727, 0.001881, 0.002047, 0.002225, 0.002415, 0.002616, 0.00283, 0.003058, 0.003304, 0.003569, 0.003859, 0.004177, 0.004528, 0.004921, 0.005362, 0.00586, 0.006422, 0.007052, 0.007753, 0.00853, 0.009385, 0.010318, 0.011329, 0.012416, 0.01357, 0.01479, 0.016087, 0.01748, 0.018994, 0.020662, 0.022525, 0.024633, 0.027052, 0.029863, 0.033171, 0.037095, 0.041741, 0.047223, 0.05367, 0.06123, 0.07286, 0.08183, 0.091903, 0.103186, 0.125634, 0.139964, 0.155793, 0.173246, 0.19245, 0.213534, 0.236625, 0.261847, 0.289317, 0.319139, 0.351403, 0.386181, 0.415671, 0.452936, 0.491947, 1.0], "MMD_Est\u00e1ndar_M": [0.000282, 0.000297, 0.000314, 0.000331, 0.00035, 0.000354, 0.000376, 0.0004, 0.000426, 0.000454, 0.000483, 0.000519, 0.000556, 0.000597, 0.000639, 0.000685, 0.000733, 0.000784, 0.000838, 0.000894, 0.000953, 0.001015, 0.001079, 0.001144, 0.001212, 0.001281, 0.001351, 0.001422, 0.001492, 0.001563, 0.001632, 0.0017, 0.001767, 0.001834, 0.001903, 0.001975, 0.002051, 0.002134, 0.002226, 0.002329, 0.002446, 0.002581, 0.002738, 0.002922, 0.00314, 0.0034, 0.003711, 0.004078, 0.004507, 0.005004, 0.005576, 0.006227, 0.006961, 0.007782, 0.008689, 0.009678, 0.010746, 0.011894, 0.013123, 0.014439, 0.015845, 0.017343, 0.01894, 0.020641, 0.02245, 0.024376, 0.026427, 0.02862, 0.030971, 0.0335, 0.036233, 0.039199, 0.042432, 0.045975, 0.049875, 0.054191, 0.05898, 0.064289, 0.070166, 0.076662, 0.083829, 0.092302, 0.100703, 0.109859, 0.119819, 0.146429, 0.159702, 0.174065, 0.189587, 0.206336, 0.224382, 0.243791, 0.264629, 0.286957, 0.310832, 0.336303, 0.363412, 0.392192, 0.412623, 0.432571, 1.0], "MMD_Est\u00e1ndar_F": [0.00023, 0.000239, 0.000247, 0.000257, 0.000266, 0.000289, 0.000297, 0.000305, 0.000314, 0.000322, 0.000331, 0.000339, 0.000348, 0.000357, 0.000367, 0.000377, 0.000388, 0.000399, 0.000412, 0.000426, 0.00044, 0.000457, 0.000475, 0.000495, 0.000517, 0.000541, 0.000569, 0.0006, 0.000634, 0.000674, 0.000718, 0.000768, 0.000825, 0.000889, 0.000961, 0.00104, 0.001129, 0.001227, 0.001336, 0.001455, 0.001585, 0.001727, 0.001881, 0.002047, 0.002225, 0.002415, 0.002616, 0.00283, 0.003058, 0.003304, 0.003569, 0.003859, 0.004177, 0.004528, 0.004921, 0.005362, 0.00586, 0.006422, 0.007052, 0.007753, 0.00853, 0.009385, 0.010318, 0.011329, 0.012416, 0.01357, 0.01479, 0.016087, 0.01748, 0.018994, 0.020662, 0.022525, 0.024633, 0.027052, 0.029863, 0.033171, 0.037095, 0.041741, 0.047223, 0.05367, 0.06123, 0.07286, 0.08183, 0.091903, 0.103186, 0.125634, 0.139964, 0.155793, 0.173246, 0.19245, 0.213534, 0.236625, 0.261847, 0.289317, 0.319139, 0.351403, 0.386181, 0.415671, 0.452936, 0.491947, 1.0], "MMD_Personalizado_M": [0.000282, 0.000297, 0.000314, 0.000331, 0.00035, 0.000354, 0.000376, 0.0004, 0.000426, 0.000454, 0.000483, 0.000519, 0.000556, 0.000597, 0.000639, 0.000685, 0.000733, 0.000784, 0.000838, 0.000894, 0.000953, 0.001015, 0.001079, 0.001144, 0.001212, 0.001281, 0.001351, 0.001422, 0.001492, 0.001563, 0.001632, 0.0017, 0.001767, 0.001834, 0.001903, 0.001975, 0.002051, 0.002134, 0.002226, 0.002329, 0.002446, 0.002581, 0.002738, 0.002922, 0.00314, 0.0034, 0.003711, 0.004078, 0.004507, 0.005004, 0.005576, 0.006227, 0.006961, 0.007782, 0.008689, 0.009678, 0.010746, 0.011894, 0.013123, 0.014439, 0.015845, 0.017343, 0.01894, 0.020641, 0.02245, 0.024376, 0.026427, 0.02862, 0.030971, 0.0335, 0.036233, 0.039199, 0.042432, 0.045975, 0.049875, 0.054191, 0.05898, 0.064289, 0.070166, 0.076662, 0.083829, 0.092302, 0.100703, 0.109859, 0.119819, 0.146429, 0.159702, 0.174065, 0.189587, 0.206336, 0.224382, 0.243791, 0.264629, 0.286957, 0.310832, 0.336303, 0.363412, 0.392192, 0.412623, 0.432571, 1.0], "MMD_Personalizado_F": [0.00023, 0.000239, 0.000247, 0.000257, 0.000266, 0.000289, 0.000297, 0.000305, 0.000314, 0.000322, 0.000331, 0.000339, 0.000348, 0.000357, 0.000367, 0.000377, 0.000388, 0.000399, 0.000412, 0.000426, 0.00044, 0.000457, 0.000475, 0.000495, 0.000517, 0.000541, 0.000569, 0.0006, 0.000634, 0.000674, 0.000718, 0.000768, 0.000825, 0.000889, 0.000961, 0.00104, 0.001129, 0.001227, 0.001336, 0.001455, 0.001585, 0.001727, 0.001881, 0.002047, 0.002225, 0.002415, 0.002616, 0.00283, 0.003058, 0.003304, 0.003569, 0.003859, 0.004177, 0.004528, 0.004921, 0.005362, 0.00586, 0.006422, 0.007052, 0.007753, 0.00853, 0.009385, 0.010318, 0.011329, 0.012416, 0.01357, 0.01479, 0.016087, 0.01748, 0.018994, 0.020662, 0.022525, 0.024633, 0.027052, 0.029863, 0.033171, 0.037095, 0.041741, 0.047223, 0.05367, 0.06123, 0.07286, 0.08183, 0.091903, 0.103186, 0.125634, 0.139964, 0.155793, 0.173246, 0.19245, 0.213534, 0.236625, 0.261847, 0.289317, 0.319139, 0.351403, 0.386181, 0.415671, 0.452936, 0.491947, 1.0]};
+
+const AJUSTE_REGIONAL = {"R01": {"M": -0.033, "F": -0.028}, "R02": {"M": 0.145, "F": 0.131}, "R03": {"M": 0.02, "F": 0.025}, "R04": {"M": -0.466, "F": -0.441}, "R05": {"M": 0.563, "F": 0.541}, "R06": {"M": -0.129, "F": -0.118}, "R07": {"M": -0.099, "F": -0.087}, "NAC": {"M": 0.0, "F": 0.0}};
+
+const BETA_ECO = {"salario_real": -0.0007, "inflacion_pct": 0.0018};
+const ECO_REF  = {"salario_real": 277.5, "inflacion_pct": 211.4};
+const ESCENARIOS_ECO = {"Base 2023": {"salario_real": 277.5, "inflacion_pct": 211.4}, "Optimista 2025": {"salario_real": 340.0, "inflacion_pct": 45.0}, "Pesimista 2025": {"salario_real": 210.0, "inflacion_pct": 180.0}, "Crisis econ\u00f3mica": {"salario_real": 160.0, "inflacion_pct": 300.0}, "Estabilizaci\u00f3n": {"salario_real": 320.0, "inflacion_pct": 60.0}};
+const DRIFT = {"M": -0.0035, "F": -0.0028};
+const ANIO_BASE = 2023;
+
+// Personas y resultados pre-calculados
+const PERSONAS = [{"id": 1, "nombre": "Alejandro Garc\u00eda", "edad": 28, "sexo": "M", "region": "R01", "grupo_riesgo": "Obesidad / Sedentarismo", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 2, "nombre": "Valentina Garc\u00eda", "edad": 35, "sexo": "F", "region": "R03", "grupo_riesgo": "Bajo riesgo (oficina, activo)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 3, "nombre": "Carlos L\u00f3pez", "edad": 42, "sexo": "M", "region": "R01", "grupo_riesgo": "Trabajador de salud (exposici\u00f3n COVID)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 4, "nombre": "Sof\u00eda L\u00f3pez", "edad": 48, "sexo": "F", "region": "R01", "grupo_riesgo": "Trabajador de salud (exposici\u00f3n COVID)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 5, "nombre": "Diego Mart\u00ednez", "edad": 52, "sexo": "M", "region": "R04", "grupo_riesgo": "Nivel socioecon\u00f3mico bajo", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 6, "nombre": "Eduardo Rodr\u00edguez", "edad": 30, "sexo": "M", "region": "R05", "grupo_riesgo": "Riesgo moderado (construcci\u00f3n, transporte)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 7, "nombre": "Camila Mart\u00ednez", "edad": 39, "sexo": "F", "region": "R07", "grupo_riesgo": "Trabajador de salud (exposici\u00f3n COVID)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 8, "nombre": "Fernando Gonz\u00e1lez", "edad": 55, "sexo": "M", "region": "NAC", "grupo_riesgo": "Nivel socioecon\u00f3mico bajo", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 9, "nombre": "Luc\u00eda Rodr\u00edguez", "edad": 45, "sexo": "F", "region": "R02", "grupo_riesgo": "Fumador habitual", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 10, "nombre": "Gustavo Hern\u00e1ndez", "edad": 33, "sexo": "M", "region": "NAC", "grupo_riesgo": "Bajo riesgo (oficina, activo)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 11, "nombre": "Mar\u00eda Gonz\u00e1lez", "edad": 58, "sexo": "F", "region": "R02", "grupo_riesgo": "Nivel socioecon\u00f3mico bajo", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 12, "nombre": "Hern\u00e1n D\u00edaz", "edad": 61, "sexo": "M", "region": "R05", "grupo_riesgo": "Nivel socioecon\u00f3mico bajo", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 13, "nombre": "Javier Torres", "edad": 47, "sexo": "M", "region": "R04", "grupo_riesgo": "Trabajador de salud (exposici\u00f3n COVID)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 14, "nombre": "Ana Fern\u00e1ndez", "edad": 38, "sexo": "F", "region": "R03", "grupo_riesgo": "Obesidad / Sedentarismo", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 15, "nombre": "Leonardo Romero", "edad": 25, "sexo": "M", "region": "R03", "grupo_riesgo": "Riesgo alto (miner\u00eda, industria pesada)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, {"id": 16, "nombre": "Paula Torres", "edad": 50, "sexo": "F", "region": "R01", "grupo_riesgo": "Nivel socioecon\u00f3mico bajo", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}];
+const RESULTADOS = [{"id": 1, "modelo": "LC", "P_ord": 83768.99667075416, "P_temp": 18737.550691554017, "P_dot": 332867.6237853745, "PU_renta": 21349986.036129, "P_renta": 1531825.221051605, "a_vita": 21.349986036129, "a_temp": 13.937612295919857, "A_ord": 0.1788466909181138, "A_temp": 0.02611567169140249, "A_dot": 0.4639379886184661}, {"id": 1, "modelo": "GLO", "P_ord": 78915.81451397331, "P_temp": 17887.439834650166, "P_dot": 332339.57471147366, "PU_renta": 21573520.873638704, "P_renta": 1546724.2780496788, "a_vita": 21.573520873638703, "a_temp": 13.947877575725098, "A_ord": 0.1702491971677403, "A_temp": 0.02494918209568489, "A_dot": 0.463543170164418}, {"id": 1, "modelo": "Ensemble", "P_ord": 88488.66356309784, "P_temp": 21364.69894446198, "P_dot": 334107.1783237897, "PU_renta": 21136999.437018972, "P_renta": 1519163.8408218182, "a_vita": 21.13699943701897, "a_temp": 13.913574605346414, "A_ord": 0.18703848319157604, "A_temp": 0.02972593326845375, "A_dot": 0.4648625151789826}, {"id": 1, "modelo": "MMD_Est\u00e1ndar", "P_ord": 88498.83237185676, "P_temp": 21364.71038126623, "P_dot": 334107.18229562714, "PU_renta": 21136545.132123258, "P_renta": 1519131.1972990094, "a_vita": 21.136545132123256, "a_temp": 13.91357452845659, "A_ord": 0.1870559564567961, "A_temp": 0.029725949016863786, "A_dot": 0.46486251813628404}, {"id": 1, "modelo": "MMD_Personalizado", "P_ord": 102244.08035972428, "P_temp": 26775.60824696182, "P_dot": 336046.5697511384, "PU_renta": 20539808.1364429, "P_renta": 1480225.8273922373, "a_vita": 20.5398081364429, "a_temp": 13.876131436396133, "A_ord": 0.21000737936757866, "A_temp": 0.037154185932429445, "A_dot": 0.46630263706168573}, {"id": 2, "modelo": "LC", "P_ord": 90268.45977750086, "P_temp": 18641.680510129427, "P_dot": 331595.30328848836, "PU_renta": 21057781.00913176, "P_renta": 1508180.7822279383, "a_vita": 21.05778100913176, "a_temp": 13.962371923360843, "A_ord": 0.19008534580262315, "A_temp": 0.026028207655889417, "A_dot": 0.4629856952553514}, {"id": 2, "modelo": "GLO", "P_ord": 84300.03680438343, "P_temp": 17194.775827815818, "P_dot": 331176.146269215, "PU_renta": 21325807.476585623, "P_renta": 1526483.2381015474, "a_vita": 21.325807476585624, "a_temp": 13.970548083520423, "A_ord": 0.17977663551593634, "A_temp": 0.024022044248785557, "A_dot": 0.46267122755690604}, {"id": 2, "modelo": "Ensemble", "P_ord": 94379.22408874742, "P_temp": 21936.010721766554, "P_dot": 333282.3940348719, "PU_renta": 20877061.700243138, "P_renta": 1498759.621934891, "a_vita": 20.87706170024314, "a_temp": 13.929559747073355, "A_ord": 0.19703608845218534, "A_temp": 0.030555897196128896, "A_dot": 0.46424770203563925}, {"id": 2, "modelo": "MMD_Est\u00e1ndar", "P_ord": 94394.14920638452, "P_temp": 21936.02763128724, "P_dot": 333282.3984413749, "PU_renta": 20876411.206714742, "P_renta": 1498712.9323481817, "a_vita": 20.876411206714742, "a_temp": 13.929559661572817, "A_ord": 0.19706110743404695, "A_temp": 0.03055592056279255, "A_dot": 0.4642477053241215}, {"id": 2, "modelo": "MMD_Personalizado", "P_ord": 91801.38370175744, "P_temp": 19807.21234519195, "P_dot": 332266.65504877, "PU_renta": 20990025.257346027, "P_renta": 1504737.2119088357, "a_vita": 20.990025257346026, "a_temp": 13.949296323122834, "A_ord": 0.19269133625592025, "A_temp": 0.027629667433809926, "A_dot": 0.463488602956813}, {"id": 3, "modelo": "LC", "P_ord": 153868.58244628983, "P_temp": 56562.67092009665, "P_dot": 347979.7880339556, "PU_renta": 18570655.045806874, "P_renta": 1360477.223949424, "a_vita": 18.570655045806873, "a_temp": 13.650103595190537, "A_ord": 0.2857440366997343, "A_temp": 0.07720863176799905, "A_dot": 0.47499601556959387}, {"id": 3, "modelo": "GLO", "P_ord": 143492.70130272995, "P_temp": 50175.54911290003, "P_dot": 345745.62460699026, "PU_renta": 18935517.684064638, "P_renta": 1382976.3805881587, "a_vita": 18.93551768406464, "a_temp": 13.691859058367758, "A_ord": 0.2717108583052048, "A_temp": 0.06869965466300365, "A_dot": 0.4733900362166238}, {"id": 3, "modelo": "Ensemble", "P_ord": 162663.542371732, "P_temp": 65172.524452223784, "P_dot": 352063.6120508346, "PU_renta": 18272218.254505146, "P_renta": 1346075.9410595049, "a_vita": 18.272218254505145, "a_temp": 13.574433430645056, "A_ord": 0.29722237482672326, "A_temp": 0.08846800946837989, "A_dot": 0.47790640651365}, {"id": 3, "modelo": "MMD_Est\u00e1ndar", "P_ord": 162687.76036539412, "P_temp": 65173.10458767753, "P_dot": 352063.7375252216, "PU_renta": 18271409.714539792, "P_renta": 1346016.606877854, "a_vita": 18.271409714539793, "a_temp": 13.57443111858861, "A_ord": 0.2972534725176984, "A_temp": 0.088468781901, "A_dot": 0.47790649543889807}, {"id": 3, "modelo": "MMD_Personalizado", "P_ord": 166635.6562777417, "P_temp": 72287.31893488929, "P_dot": 355354.44954297744, "PU_renta": 18140555.315411605, "P_renta": 1342346.3708285736, "a_vita": 18.140555315411603, "a_temp": 13.514064409630883, "A_ord": 0.30228633402262883, "A_temp": 0.09768954840856241, "A_dot": 0.4802282919372725}, {"id": 4, "modelo": "LC", "P_ord": 163764.69857301208, "P_temp": 59443.310031842135, "P_dot": 350479.396386722, "PU_renta": 18235527.34055892, "P_renta": 1340484.0976866102, "a_vita": 18.23552734055892, "a_temp": 13.603687930374969, "A_ord": 0.2986335638246552, "A_temp": 0.08086482392217081, "A_dot": 0.47678123344711537}, {"id": 4, "modelo": "GLO", "P_ord": 150913.80424255368, "P_temp": 50786.70704431792, "P_dot": 346392.7520071501, "PU_renta": 18673118.492991656, "P_renta": 1365020.1554493634, "a_vita": 18.673118492991655, "a_temp": 13.679738294299751, "A_ord": 0.28180313488493514, "A_temp": 0.06947488611955388, "A_dot": 0.4738562194500088}, {"id": 4, "modelo": "Ensemble", "P_ord": 170196.60187156254, "P_temp": 65664.07534267637, "P_dot": 353609.3442033121, "PU_renta": 18024123.92587205, "P_renta": 1330585.3997371492, "a_vita": 18.02412392587205, "a_temp": 13.546010597615629, "A_ord": 0.30676446438953503, "A_temp": 0.08894862604745252, "A_dot": 0.4789995923993979}, {"id": 4, "modelo": "MMD_Est\u00e1ndar", "P_ord": 170230.73264603503, "P_temp": 65664.58329170574, "P_dot": 353609.4671231488, "PU_renta": 18023015.190873943, "P_renta": 1330503.7717164261, "a_vita": 18.02301519087394, "a_temp": 13.546008342105804, "A_ord": 0.30680710804330896, "A_temp": 0.08894929930503474, "A_dot": 0.4789996791497761}, {"id": 4, "modelo": "MMD_Personalizado", "P_ord": 172759.22925227383, "P_temp": 71264.09967814125, "P_dot": 357112.8666146131, "PU_renta": 17941254.860190596, "P_renta": 1330753.5592320883, "a_vita": 17.941254860190597, "a_temp": 13.482026582400128, "A_ord": 0.30995173614651395, "A_temp": 0.09607844862315128, "A_dot": 0.4814605160615325}, {"id": 5, "modelo": "LC", "P_ord": 252251.93887956836, "P_temp": 143015.49116284898, "P_dot": 392144.295812664, "PU_renta": 15701857.5629265, "P_renta": 1219656.9862705541, "a_vita": 15.701857562926499, "a_temp": 12.873994688407734, "A_ord": 0.39608240142590234, "A_temp": 0.18411806735905412, "A_dot": 0.5048463581381627}, {"id": 5, "modelo": "GLO", "P_ord": 232048.8230658003, "P_temp": 125253.59465040143, "P_dot": 382464.74878255284, "PU_renta": 16216280.879350113, "P_renta": 1243918.6900150322, "a_vita": 16.216280879350112, "a_temp": 13.03644764687485, "A_ord": 0.37629688925576343, "A_temp": 0.1632861929242842, "A_dot": 0.49859816742788915}, {"id": 5, "modelo": "Ensemble", "P_ord": 266448.8221688636, "P_temp": 162270.48145849028, "P_dot": 402331.57140594226, "PU_renta": 15359468.230318211, "P_renta": 1208708.6769955207, "a_vita": 15.35946823031821, "a_temp": 12.707336782339597, "A_ord": 0.40925122191083674, "A_temp": 0.20620256577254292, "A_dot": 0.5112562776023221}, {"id": 5, "modelo": "MMD_Est\u00e1ndar", "P_ord": 266501.64686538285, "P_temp": 162277.7692987128, "P_dot": 402333.66307012463, "PU_renta": 15358222.126762724, "P_renta": 1208613.8276798457, "a_vita": 15.358222126762724, "a_temp": 12.707303006987456, "A_ord": 0.40929914897066283, "A_temp": 0.206211278577675, "A_dot": 0.5112575766543273}, {"id": 5, "modelo": "MMD_Personalizado", "P_ord": 240115.35530161773, "P_temp": 139546.02833679385, "P_dot": 391763.1979643032, "PU_renta": 16006896.029045282, "P_renta": 1242741.1250530623, "a_vita": 16.006896029045283, "a_temp": 12.880314094668607, "A_ord": 0.38435015272902623, "A_temp": 0.17973966756414309, "A_dot": 0.5046033040512062}, {"id": 6, "modelo": "LC", "P_ord": 90826.15672176395, "P_temp": 20838.753344127148, "P_dot": 333654.74542796845, "PU_renta": 21033080.05412323, "P_renta": 1510743.3145687364, "a_vita": 21.03308005412323, "a_temp": 13.922338660242511, "A_ord": 0.19103538253372038, "A_temp": 0.02901241813141993, "A_dot": 0.46452543614451786}, {"id": 6, "modelo": "GLO", "P_ord": 85541.89685868172, "P_temp": 19914.943118732626, "P_dot": 333197.56548265414, "PU_renta": 21269478.096026413, "P_renta": 1526750.6819154357, "a_vita": 21.269478096026415, "a_temp": 13.931205892334749, "A_ord": 0.18194315015282816, "A_temp": 0.02774391729211993, "A_dot": 0.4641843887563544}, {"id": 6, "modelo": "Ensemble", "P_ord": 96032.70686522141, "P_temp": 24004.689599293866, "P_dot": 335201.11133421934, "PU_renta": 20805242.291081637, "P_renta": 1497595.6603348914, "a_vita": 20.805242291081637, "a_temp": 13.892429607087124, "A_ord": 0.19979837341993503, "A_temp": 0.033348346049816645, "A_dot": 0.46567578434280155}, {"id": 6, "modelo": "MMD_Est\u00e1ndar", "P_ord": 96044.09350100016, "P_temp": 24004.707328824963, "P_dot": 335201.11679933936, "PU_renta": 20804749.422997184, "P_renta": 1497560.1942471846, "a_vita": 20.804749422997183, "a_temp": 13.89242950161053, "A_ord": 0.19981732988472203, "A_temp": 0.03334837042724944, "A_dot": 0.46567578839959395}, {"id": 6, "modelo": "MMD_Personalizado", "P_ord": 153707.23649148364, "P_temp": 64650.13945583399, "P_dot": 356548.49532529415, "PU_renta": 18576221.039046347, "P_renta": 1376802.4059935275, "a_vita": 18.57622103904635, "a_temp": 13.492292690788394, "A_ord": 0.28552996003667713, "A_temp": 0.08722786040383992, "A_dot": 0.48106566573890663}, {"id": 7, "modelo": "LC", "P_ord": 107802.17864674452, "P_temp": 26432.955377435766, "P_dot": 335012.90644319815, "PU_renta": 20307967.761654906, "P_renta": 1461418.813519253, "a_vita": 20.307967761654904, "a_temp": 13.896062903933162, "A_ord": 0.21892431685942507, "A_temp": 0.03673140106617057, "A_dot": 0.46553604215641575}, {"id": 7, "modelo": "GLO", "P_ord": 100354.13293492868, "P_temp": 23527.70349665554, "P_dot": 334107.67079682613, "PU_renta": 20619852.667260755, "P_renta": 1481996.3511163283, "a_vita": 20.619852667260755, "a_temp": 13.913565071687692, "A_ord": 0.20692874356689295, "A_temp": 0.03273542335880909, "A_dot": 0.46486288185816504}, {"id": 7, "modelo": "Ensemble", "P_ord": 112676.449198419, "P_temp": 30444.44669958516, "P_dot": 337337.9909056724, "PU_renta": 20108916.575823348, "P_renta": 1451770.0199987018, "a_vita": 20.108916575823347, "a_temp": 13.851309986303017, "A_ord": 0.22658013169910052, "A_temp": 0.04216954685974339, "A_dot": 0.46725730821911365}, {"id": 7, "modelo": "MMD_Est\u00e1ndar", "P_ord": 112695.35803920659, "P_temp": 30444.49250804395, "P_dot": 337338.00256694417, "PU_renta": 20108151.990888152, "P_renta": 1451714.8439798804, "a_vita": 20.108151990888153, "a_temp": 13.851309762571274, "A_ord": 0.22660953881199253, "A_temp": 0.04216960962931972, "A_dot": 0.4672573168241807}, {"id": 7, "modelo": "MMD_Personalizado", "P_ord": 111827.91124134864, "P_temp": 32075.403749327867, "P_dot": 338121.8057305011, "PU_renta": 20143287.42770624, "P_renta": 1455830.2959830028, "a_vita": 20.14328742770624, "a_temp": 13.836288119079931, "A_ord": 0.22525817585745075, "A_temp": 0.04438045278115171, "A_dot": 0.4678350723430784}, {"id": 8, "modelo": "LC", "P_ord": 294248.2872010585, "P_temp": 183439.3495360332, "P_dot": 414851.99548058055, "PU_renta": 14730498.058973867, "P_renta": 1177655.269071655, "a_vita": 14.730498058973867, "a_temp": 12.508327730394235, "A_ord": 0.43344238234715776, "A_temp": 0.22945195026470452, "A_dot": 0.518910471907913}, {"id": 8, "modelo": "GLO", "P_ord": 269871.0174342015, "P_temp": 162258.2946734255, "P_dot": 402195.2280094125, "PU_renta": 15279156.249364449, "P_renta": 1202180.2288952451, "a_vita": 15.27915624936445, "a_temp": 12.709538788044595, "A_ord": 0.4123401442552122, "A_temp": 0.20622280898338713, "A_dot": 0.5111715850752068}, {"id": 8, "modelo": "Ensemble", "P_ord": 310399.80823844863, "P_temp": 207740.77809561422, "P_dot": 428037.3064708764, "PU_renta": 14388174.67994985, "P_renta": 1169258.887348046, "a_vita": 14.38817467994985, "a_temp": 12.305379788545503, "A_ord": 0.4466086661557736, "A_temp": 0.2556329172034488, "A_dot": 0.5267161619790179}, {"id": 8, "modelo": "MMD_Est\u00e1ndar", "P_ord": 310469.0444361845, "P_temp": 207755.23339403517, "P_dot": 428041.77595654957, "PU_renta": 14386741.497928267, "P_renta": 1169148.8495588815, "a_vita": 14.386741497928268, "a_temp": 12.305312110905612, "A_ord": 0.44666378854121913, "A_temp": 0.2556492989587643, "A_dot": 0.5267187649651677}, {"id": 8, "modelo": "MMD_Personalizado", "P_ord": 365336.79290153214, "P_temp": 272771.41105724813, "P_dot": 467186.65388306027, "PU_renta": 13334183.565023942, "P_renta": 1135808.4742399866, "a_vita": 13.334183565023942, "a_temp": 11.739816938719672, "A_ord": 0.4871467859606165, "A_temp": 0.32022864319283484, "A_dot": 0.5484685792800116}, {"id": 9, "modelo": "LC", "P_ord": 142031.79676011537, "P_temp": 45519.424594099655, "P_dot": 343750.4814959837, "PU_renta": 18988044.28019899, "P_renta": 1383024.331790817, "a_vita": 18.98804428019899, "a_temp": 13.729363861308364, "A_ord": 0.2696906046077294, "A_temp": 0.062495274300978294, "A_dot": 0.47194754379583087}, {"id": 9, "modelo": "GLO", "P_ord": 131354.70236425544, "P_temp": 39046.66298268741, "P_dot": 341066.9193245578, "PU_renta": 19380968.49477746, "P_renta": 1406442.5869877557, "a_vita": 19.38096849477746, "a_temp": 13.780134840972494, "A_ord": 0.25457813481625047, "A_temp": 0.05380682809914418, "A_dot": 0.46999481380874947}, {"id": 9, "modelo": "Ensemble", "P_ord": 147954.66782525883, "P_temp": 50697.830788528685, "P_dot": 346655.2738714738, "PU_renta": 18776872.552582208, "P_renta": 1373097.5955850624, "a_vita": 18.77687255258221, "a_temp": 13.67482734873014, "A_ord": 0.2778125941314521, "A_temp": 0.0693284082988265, "A_dot": 0.4740451019719166}, {"id": 9, "modelo": "MMD_Est\u00e1ndar", "P_ord": 147982.40863442072, "P_temp": 50698.06001379459, "P_dot": 346655.328567694, "PU_renta": 18775894.54320114, "P_renta": 1373026.1793256984, "a_vita": 18.77589454320114, "a_temp": 13.674826325905963, "A_ord": 0.27785020987687814, "A_temp": 0.06932871657489986, "A_dot": 0.47404514131130837}, {"id": 9, "modelo": "MMD_Personalizado", "P_ord": 239059.09502575698, "P_temp": 130385.9127694433, "P_dot": 383690.8201001212, "PU_renta": 16034005.441033795, "P_renta": 1231902.586678846, "a_vita": 16.034005441033795, "a_temp": 13.015643943293238, "A_ord": 0.3833074830371602, "A_temp": 0.1697056615828365, "A_dot": 0.4993983098733358}, {"id": 10, "modelo": "LC", "P_ord": 102892.81170047917, "P_temp": 25371.736944153774, "P_dot": 335311.81401206733, "PU_renta": 20512475.63747797, "P_renta": 1476748.9122603387, "a_vita": 20.512475637477973, "a_temp": 13.890293378365321, "A_ord": 0.21105862932776875, "A_temp": 0.03524208696730059, "A_dot": 0.4657579469859483}, {"id": 10, "modelo": "GLO", "P_ord": 96790.70718149582, "P_temp": 24011.797203624956, "P_dot": 334855.2184073036, "PU_renta": 20772483.295079026, "P_renta": 1494519.1082589247, "a_vita": 20.772483295079027, "a_temp": 13.899108536175508, "A_ord": 0.20105833480465074, "A_temp": 0.03337425754818188, "A_dot": 0.46541890245478673}, {"id": 10, "modelo": "Ensemble", "P_ord": 108847.02960263078, "P_temp": 29450.457420370753, "P_dot": 337302.4068381644, "PU_renta": 20264967.932455145, "P_renta": 1462964.089367503, "a_vita": 20.264967932455146, "a_temp": 13.851992731562186, "A_ord": 0.22057815644403084, "A_temp": 0.040794752212815734, "A_dot": 0.4672310487860684}, {"id": 10, "modelo": "MMD_Est\u00e1ndar", "P_ord": 108860.59855586264, "P_temp": 29450.49664854258, "P_dot": 337302.41670276946, "PU_renta": 20264410.713033132, "P_renta": 1462923.8826960945, "a_vita": 20.264410713033133, "a_temp": 13.851992542282414, "A_ord": 0.22059958796026222, "A_temp": 0.04079480599421251, "A_dot": 0.46723105606605975}, {"id": 10, "modelo": "MMD_Personalizado", "P_ord": 103722.04944858895, "P_temp": 25944.93388078952, "P_dot": 335569.7600358959, "PU_renta": 20477643.740680255, "P_renta": 1474769.4819499215, "a_vita": 20.477643740680254, "a_temp": 13.885318343857357, "A_ord": 0.21239831766614253, "A_temp": 0.036025366634509295, "A_dot": 0.4659492944670237}, {"id": 11, "modelo": "LC", "P_ord": 269683.90049474925, "P_temp": 140454.82863627395, "P_dot": 391072.1466236247, "PU_renta": 15283525.792507557, "P_renta": 1185524.0390617924, "a_vita": 15.283525792507557, "a_temp": 12.891789022348911, "A_ord": 0.41217208490355417, "A_temp": 0.1810714017949014, "A_dot": 0.5041619606788869}, {"id": 11, "modelo": "GLO", "P_ord": 246632.97301740415, "P_temp": 124113.27255354665, "P_dot": 381625.2378380032, "PU_renta": 15841625.374678932, "P_renta": 1213849.688776738, "a_vita": 15.841625374678932, "a_temp": 13.050730680372292, "A_ord": 0.39070671635850135, "A_temp": 0.16197688939559796, "A_dot": 0.49804881998568007}, {"id": 11, "modelo": "Ensemble", "P_ord": 279627.1084652925, "P_temp": 156353.9010709596, "P_dot": 398535.2579765283, "PU_renta": 15054742.96536072, "P_renta": 1179013.1627378338, "a_vita": 15.05474296536072, "a_temp": 12.768935446319782, "A_ord": 0.4209714244092021, "A_temp": 0.19964728695553527, "A_dot": 0.5088870982184691}, {"id": 11, "modelo": "MMD_Est\u00e1ndar", "P_ord": 279702.80359946337, "P_temp": 156360.86753230076, "P_dot": 398537.03414499864, "PU_renta": 15053027.566311155, "P_renta": 1178881.4948223317, "a_vita": 15.053027566311155, "a_temp": 12.768906486720095, "A_ord": 0.42103740129572365, "A_temp": 0.19965572957023767, "A_dot": 0.5088882120492261}, {"id": 11, "modelo": "MMD_Personalizado", "P_ord": 340990.2861176753, "P_temp": 229876.8672509864, "P_dot": 439512.0501559112, "PU_renta": 13781590.198843481, "P_renta": 1135778.6577642122, "a_vita": 13.781590198843482, "a_temp": 12.134045753221523, "A_ord": 0.4699388385060188, "A_temp": 0.27893364248306995, "A_dot": 0.533305932568402}, {"id": 12, "modelo": "LC", "P_ord": 402022.5832578283, "P_temp": 295294.2542535032, "P_dot": 478420.08758508245, "PU_renta": 12712328.171797259, "P_renta": 1097119.0146514357, "a_vita": 12.712328171797258, "a_temp": 11.587009250619976, "A_ord": 0.51106430108472, "A_temp": 0.3421577255690269, "A_dot": 0.5543457980530769}, {"id": 12, "modelo": "GLO", "P_ord": 367431.4199183808, "P_temp": 267351.5273742549, "P_dot": 460228.85920472076, "PU_renta": 13297044.731410742, "P_renta": 1123393.1701150835, "a_vita": 13.297044731410741, "a_temp": 11.83650131151194, "A_ord": 0.4885752026380473, "A_temp": 0.3164506704400088, "A_dot": 0.5447499495572321}, {"id": 12, "modelo": "Ensemble", "P_ord": 421976.3553135653, "P_temp": 330632.3681550286, "P_dot": 500200.58525898994, "PU_renta": 12397845.781164158, "P_renta": 1096981.19392137, "a_vita": 12.397845781164158, "a_temp": 11.301785162647755, "A_ord": 0.5231597776475313, "A_temp": 0.37367359927055926, "A_dot": 0.5653159552827777}, {"id": 12, "modelo": "MMD_Est\u00e1ndar", "P_ord": 422102.66563722095, "P_temp": 330688.3790755774, "P_dot": 500220.0049633947, "PU_renta": 12395904.61235957, "P_renta": 1096833.5086858573, "a_vita": 12.39590461235957, "a_temp": 11.301537119531844, "A_ord": 0.5232344379861696, "A_temp": 0.3737286991120456, "A_dot": 0.5653254954026208}, {"id": 12, "modelo": "MMD_Personalizado", "P_ord": 710973.2069333248, "P_temp": 669908.0547373539, "P_dot": 741251.4346127517, "PU_renta": 9127513.810511777, "P_renta": 1027636.4941301788, "a_vita": 9.127513810511777, "a_temp": 8.882045219927274, "A_ord": 0.648941776518777, "A_temp": 0.5950153635370693, "A_dot": 0.6583828761566426}, {"id": 13, "modelo": "LC", "P_ord": 196041.80204926152, "P_temp": 91523.510192096, "P_dot": 364666.4256701146, "PU_renta": 17221865.551068094, "P_renta": 1290403.0596597795, "a_vita": 17.221865551068092, "a_temp": 13.346113388485545, "A_ord": 0.3376205557281487, "A_temp": 0.12214831447359256, "A_dot": 0.48668794659670855}, {"id": 13, "modelo": "GLO", "P_ord": 181546.06440539417, "P_temp": 79774.27007779024, "P_dot": 359445.7129016875, "PU_renta": 17662806.28484292, "P_renta": 1314220.7029531675, "a_vita": 17.66280628484292, "a_temp": 13.439756537964337, "A_ord": 0.3206612967368093, "A_temp": 0.10721467678393143, "A_dot": 0.48308628700137063}, {"id": 13, "modelo": "Ensemble", "P_ord": 207212.71681996543, "P_temp": 104354.07386161697, "P_dot": 371145.2371735493, "PU_renta": 16896798.20161828, "P_renta": 1276993.4715097188, "a_vita": 16.89679820161828, "a_temp": 13.231702885404832, "A_ord": 0.350123146091603, "A_temp": 0.13807821002185064, "A_dot": 0.4910883505613513}, {"id": 13, "modelo": "MMD_Est\u00e1ndar", "P_ord": 207247.71887032397, "P_temp": 104356.26907702506, "P_dot": 371145.7810691527, "PU_renta": 16895798.94591528, "P_renta": 1276918.870653653, "a_vita": 16.89579894591528, "a_temp": 13.231693362998344, "A_ord": 0.3501615790032566, "A_temp": 0.1380810152933742, "A_dot": 0.4910887168077544}, {"id": 13, "modelo": "MMD_Personalizado", "P_ord": 168105.74580245232, "P_temp": 74834.64666572494, "P_dot": 357646.5925686131, "PU_renta": 18092306.318089105, "P_renta": 1342923.1059483371, "a_vita": 18.092306318089104, "a_temp": 13.47233228615334, "A_ord": 0.30414206468887894, "A_temp": 0.10081972263975235, "A_dot": 0.4818333736094856}, {"id": 14, "modelo": "LC", "P_ord": 103075.09026446169, "P_temp": 24179.16276022723, "P_dot": 334016.01288099843, "PU_renta": 20504808.920993816, "P_renta": 1473539.9490290105, "a_vita": 20.504808920993817, "a_temp": 13.915339678782015, "A_ord": 0.21135350303869768, "A_temp": 0.03364612629571184, "A_dot": 0.4647946277391522}, {"id": 14, "modelo": "GLO", "P_ord": 96039.75427500962, "P_temp": 21711.77183864802, "P_dot": 333275.71363454434, "PU_renta": 20804937.242708497, "P_renta": 1493567.924618886, "a_vita": 20.804937242708498, "a_temp": 13.929689369847237, "A_ord": 0.19981010604967203, "A_temp": 0.030243823738136392, "A_dot": 0.4642427165443364}, {"id": 14, "modelo": "Ensemble", "P_ord": 107760.8076912301, "P_temp": 28024.22351961602, "P_dot": 336196.4901090853, "PU_renta": 20309674.0992967, "P_renta": 1463945.426255708, "a_vita": 20.3096740992967, "a_temp": 13.873245364919224, "A_ord": 0.21885868848858686, "A_temp": 0.03887869290489733, "A_dot": 0.4664136398107979}, {"id": 14, "modelo": "MMD_Est\u00e1ndar", "P_ord": 107778.60785799702, "P_temp": 28024.258967878737, "P_dot": 336196.4992301581, "PU_renta": 20308939.899465922, "P_renta": 1463892.5227839954, "a_vita": 20.308939899465923, "a_temp": 13.873245189368733, "A_ord": 0.21888692694361672, "A_temp": 0.03887874159117473, "A_dot": 0.46641364656274}, {"id": 14, "modelo": "MMD_Personalizado", "P_ord": 127536.82218726167, "P_temp": 42192.59814437736, "P_dot": 342719.39152620407, "PU_renta": 19525445.496817715, "P_renta": 1420153.5529492714, "a_vita": 19.525445496817717, "a_temp": 13.748826988651116, "A_ord": 0.24902132704547106, "A_temp": 0.058009873208872645, "A_dot": 0.47119896197495625}, {"id": 15, "modelo": "LC", "P_ord": 74421.13132573113, "P_temp": 16487.729766709177, "P_dot": 331960.8633515042, "PU_renta": 21784759.278895278, "P_renta": 1561044.1066932667, "a_vita": 21.784759278895276, "a_temp": 13.955249044847019, "A_ord": 0.16212464311941052, "A_temp": 0.0230090375078564, "A_dot": 0.4632596521212671}, {"id": 15, "modelo": "GLO", "P_ord": 70080.84587912932, "P_temp": 15546.142410506922, "P_dot": 331276.37243635714, "PU_renta": 21992704.86391383, "P_renta": 1574439.6127347678, "a_vita": 21.99270486391383, "a_temp": 13.968592181006532, "A_ord": 0.15412673600331228, "A_temp": 0.021715772332022102, "A_dot": 0.4627464545766706}, {"id": 15, "modelo": "Ensemble", "P_ord": 78410.14566935734, "P_temp": 18327.38378712528, "P_dot": 332697.10055224923, "PU_renta": 21597081.253490243, "P_renta": 1549185.6026308427, "a_vita": 21.59708125349024, "a_temp": 13.940925617184837, "A_ord": 0.16934302871191165, "A_temp": 0.025550069413391288, "A_dot": 0.4638105531851971}, {"id": 15, "modelo": "MMD_Est\u00e1ndar", "P_ord": 78418.769830633, "P_temp": 18327.39052047451, "P_dot": 332697.1031608724, "PU_renta": 21596679.00084857, "P_renta": 1549156.7541803955, "a_vita": 21.596679000848567, "a_temp": 13.940925566486404, "A_ord": 0.16935849996736088, "A_temp": 0.025550078707386365, "A_dot": 0.46381055513513714}, {"id": 15, "modelo": "MMD_Personalizado", "P_ord": 115773.20887457923, "P_temp": 39088.412333756976, "P_dot": 343293.72613439534, "PU_renta": 19984468.331412014, "P_renta": 1454687.6571925273, "a_vita": 19.984468331412014, "a_temp": 13.737978893682932, "A_ord": 0.2313666026379977, "A_temp": 0.053699578362872896, "A_dot": 0.47161619639680913}, {"id": 16, "modelo": "LC", "P_ord": 180387.44813519242, "P_temp": 70705.39640402758, "P_dot": 356102.0647993241, "PU_renta": 17699026.306323897, "P_renta": 1310997.7622744085, "a_vita": 17.699026306323898, "a_temp": 13.500424497764525, "A_ord": 0.3192682189875409, "A_temp": 0.09545528657370857, "A_dot": 0.48075290393213255}, {"id": 16, "modelo": "GLO", "P_ord": 165869.69999495472, "P_temp": 60552.189148335376, "P_dot": 350951.54213682533, "PU_renta": 18165796.457643323, "P_renta": 1336215.9072354892, "a_vita": 18.165796457643324, "a_temp": 13.59495599422007, "A_ord": 0.3013155208598709, "A_temp": 0.08232043468253096, "A_dot": 0.47711707714538104}, {"id": 16, "modelo": "Ensemble", "P_ord": 187219.8986376578, "P_temp": 77959.47232404107, "P_dot": 359501.4646711093, "PU_renta": 17487553.309254076, "P_renta": 1301278.307021176, "a_vita": 17.487553309254075, "a_temp": 13.438749585617659, "A_ord": 0.32740179579791856, "A_temp": 0.10476778263896783, "A_dot": 0.4831250159377812}, {"id": 16, "modelo": "MMD_Est\u00e1ndar", "P_ord": 187259.3624239016, "P_temp": 77960.31923354066, "P_dot": 359501.6753438594, "PU_renta": 17486346.532649077, "P_renta": 1301188.8771303361, "a_vita": 17.486346532649076, "a_temp": 13.438745780869077, "A_ord": 0.3274482102827268, "A_temp": 0.1047688911174951, "A_dot": 0.4831251622742656}, {"id": 16, "modelo": "MMD_Personalizado", "P_ord": 210659.85227148965, "P_temp": 102641.96133824548, "P_dot": 372449.2242746462, "PU_renta": 16798951.77951167, "P_renta": 1271789.18587185, "a_vita": 16.798951779511672, "a_temp": 13.20891226795224, "A_ord": 0.3538864700187807, "A_temp": 0.135578866232743, "A_dot": 0.49196491277106696}];
+const TABLA_DATA = [{"persona": {"id": 1, "nombre": "Alejandro Garc\u00eda", "edad": 28, "sexo": "M", "region": "R01", "grupo_riesgo": "Obesidad / Sedentarismo", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 18737.55, "P_dot": 332867.62, "P_ord": 83769.0, "PU_renta": 21349986.04, "P_renta": 1531825.22}, "GLO": {"P_temp": 17887.44, "P_dot": 332339.57, "P_ord": 78915.81, "PU_renta": 21573520.87, "P_renta": 1546724.28}, "Ensemble": {"P_temp": 21364.7, "P_dot": 334107.18, "P_ord": 88488.66, "PU_renta": 21136999.44, "P_renta": 1519163.84}, "MMD_Est\u00e1ndar": {"P_temp": 21364.71, "P_dot": 334107.18, "P_ord": 88498.83, "PU_renta": 21136545.13, "P_renta": 1519131.2}, "MMD_Personalizado": {"P_temp": 26775.61, "P_dot": 336046.57, "P_ord": 102244.08, "PU_renta": 20539808.14, "P_renta": 1480225.83}}, {"persona": {"id": 2, "nombre": "Valentina Garc\u00eda", "edad": 35, "sexo": "F", "region": "R03", "grupo_riesgo": "Bajo riesgo (oficina, activo)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 18641.68, "P_dot": 331595.3, "P_ord": 90268.46, "PU_renta": 21057781.01, "P_renta": 1508180.78}, "GLO": {"P_temp": 17194.78, "P_dot": 331176.15, "P_ord": 84300.04, "PU_renta": 21325807.48, "P_renta": 1526483.24}, "Ensemble": {"P_temp": 21936.01, "P_dot": 333282.39, "P_ord": 94379.22, "PU_renta": 20877061.7, "P_renta": 1498759.62}, "MMD_Est\u00e1ndar": {"P_temp": 21936.03, "P_dot": 333282.4, "P_ord": 94394.15, "PU_renta": 20876411.21, "P_renta": 1498712.93}, "MMD_Personalizado": {"P_temp": 19807.21, "P_dot": 332266.66, "P_ord": 91801.38, "PU_renta": 20990025.26, "P_renta": 1504737.21}}, {"persona": {"id": 3, "nombre": "Carlos L\u00f3pez", "edad": 42, "sexo": "M", "region": "R01", "grupo_riesgo": "Trabajador de salud (exposici\u00f3n COVID)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 56562.67, "P_dot": 347979.79, "P_ord": 153868.58, "PU_renta": 18570655.05, "P_renta": 1360477.22}, "GLO": {"P_temp": 50175.55, "P_dot": 345745.62, "P_ord": 143492.7, "PU_renta": 18935517.68, "P_renta": 1382976.38}, "Ensemble": {"P_temp": 65172.52, "P_dot": 352063.61, "P_ord": 162663.54, "PU_renta": 18272218.25, "P_renta": 1346075.94}, "MMD_Est\u00e1ndar": {"P_temp": 65173.1, "P_dot": 352063.74, "P_ord": 162687.76, "PU_renta": 18271409.71, "P_renta": 1346016.61}, "MMD_Personalizado": {"P_temp": 72287.32, "P_dot": 355354.45, "P_ord": 166635.66, "PU_renta": 18140555.32, "P_renta": 1342346.37}}, {"persona": {"id": 4, "nombre": "Sof\u00eda L\u00f3pez", "edad": 48, "sexo": "F", "region": "R01", "grupo_riesgo": "Trabajador de salud (exposici\u00f3n COVID)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 59443.31, "P_dot": 350479.4, "P_ord": 163764.7, "PU_renta": 18235527.34, "P_renta": 1340484.1}, "GLO": {"P_temp": 50786.71, "P_dot": 346392.75, "P_ord": 150913.8, "PU_renta": 18673118.49, "P_renta": 1365020.16}, "Ensemble": {"P_temp": 65664.08, "P_dot": 353609.34, "P_ord": 170196.6, "PU_renta": 18024123.93, "P_renta": 1330585.4}, "MMD_Est\u00e1ndar": {"P_temp": 65664.58, "P_dot": 353609.47, "P_ord": 170230.73, "PU_renta": 18023015.19, "P_renta": 1330503.77}, "MMD_Personalizado": {"P_temp": 71264.1, "P_dot": 357112.87, "P_ord": 172759.23, "PU_renta": 17941254.86, "P_renta": 1330753.56}}, {"persona": {"id": 5, "nombre": "Diego Mart\u00ednez", "edad": 52, "sexo": "M", "region": "R04", "grupo_riesgo": "Nivel socioecon\u00f3mico bajo", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 143015.49, "P_dot": 392144.3, "P_ord": 252251.94, "PU_renta": 15701857.56, "P_renta": 1219656.99}, "GLO": {"P_temp": 125253.59, "P_dot": 382464.75, "P_ord": 232048.82, "PU_renta": 16216280.88, "P_renta": 1243918.69}, "Ensemble": {"P_temp": 162270.48, "P_dot": 402331.57, "P_ord": 266448.82, "PU_renta": 15359468.23, "P_renta": 1208708.68}, "MMD_Est\u00e1ndar": {"P_temp": 162277.77, "P_dot": 402333.66, "P_ord": 266501.65, "PU_renta": 15358222.13, "P_renta": 1208613.83}, "MMD_Personalizado": {"P_temp": 139546.03, "P_dot": 391763.2, "P_ord": 240115.36, "PU_renta": 16006896.03, "P_renta": 1242741.13}}, {"persona": {"id": 6, "nombre": "Eduardo Rodr\u00edguez", "edad": 30, "sexo": "M", "region": "R05", "grupo_riesgo": "Riesgo moderado (construcci\u00f3n, transporte)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 20838.75, "P_dot": 333654.75, "P_ord": 90826.16, "PU_renta": 21033080.05, "P_renta": 1510743.31}, "GLO": {"P_temp": 19914.94, "P_dot": 333197.57, "P_ord": 85541.9, "PU_renta": 21269478.1, "P_renta": 1526750.68}, "Ensemble": {"P_temp": 24004.69, "P_dot": 335201.11, "P_ord": 96032.71, "PU_renta": 20805242.29, "P_renta": 1497595.66}, "MMD_Est\u00e1ndar": {"P_temp": 24004.71, "P_dot": 335201.12, "P_ord": 96044.09, "PU_renta": 20804749.42, "P_renta": 1497560.19}, "MMD_Personalizado": {"P_temp": 64650.14, "P_dot": 356548.5, "P_ord": 153707.24, "PU_renta": 18576221.04, "P_renta": 1376802.41}}, {"persona": {"id": 7, "nombre": "Camila Mart\u00ednez", "edad": 39, "sexo": "F", "region": "R07", "grupo_riesgo": "Trabajador de salud (exposici\u00f3n COVID)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 26432.96, "P_dot": 335012.91, "P_ord": 107802.18, "PU_renta": 20307967.76, "P_renta": 1461418.81}, "GLO": {"P_temp": 23527.7, "P_dot": 334107.67, "P_ord": 100354.13, "PU_renta": 20619852.67, "P_renta": 1481996.35}, "Ensemble": {"P_temp": 30444.45, "P_dot": 337337.99, "P_ord": 112676.45, "PU_renta": 20108916.58, "P_renta": 1451770.02}, "MMD_Est\u00e1ndar": {"P_temp": 30444.49, "P_dot": 337338.0, "P_ord": 112695.36, "PU_renta": 20108151.99, "P_renta": 1451714.84}, "MMD_Personalizado": {"P_temp": 32075.4, "P_dot": 338121.81, "P_ord": 111827.91, "PU_renta": 20143287.43, "P_renta": 1455830.3}}, {"persona": {"id": 8, "nombre": "Fernando Gonz\u00e1lez", "edad": 55, "sexo": "M", "region": "NAC", "grupo_riesgo": "Nivel socioecon\u00f3mico bajo", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 183439.35, "P_dot": 414852.0, "P_ord": 294248.29, "PU_renta": 14730498.06, "P_renta": 1177655.27}, "GLO": {"P_temp": 162258.29, "P_dot": 402195.23, "P_ord": 269871.02, "PU_renta": 15279156.25, "P_renta": 1202180.23}, "Ensemble": {"P_temp": 207740.78, "P_dot": 428037.31, "P_ord": 310399.81, "PU_renta": 14388174.68, "P_renta": 1169258.89}, "MMD_Est\u00e1ndar": {"P_temp": 207755.23, "P_dot": 428041.78, "P_ord": 310469.04, "PU_renta": 14386741.5, "P_renta": 1169148.85}, "MMD_Personalizado": {"P_temp": 272771.41, "P_dot": 467186.65, "P_ord": 365336.79, "PU_renta": 13334183.57, "P_renta": 1135808.47}}, {"persona": {"id": 9, "nombre": "Luc\u00eda Rodr\u00edguez", "edad": 45, "sexo": "F", "region": "R02", "grupo_riesgo": "Fumador habitual", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 45519.42, "P_dot": 343750.48, "P_ord": 142031.8, "PU_renta": 18988044.28, "P_renta": 1383024.33}, "GLO": {"P_temp": 39046.66, "P_dot": 341066.92, "P_ord": 131354.7, "PU_renta": 19380968.49, "P_renta": 1406442.59}, "Ensemble": {"P_temp": 50697.83, "P_dot": 346655.27, "P_ord": 147954.67, "PU_renta": 18776872.55, "P_renta": 1373097.6}, "MMD_Est\u00e1ndar": {"P_temp": 50698.06, "P_dot": 346655.33, "P_ord": 147982.41, "PU_renta": 18775894.54, "P_renta": 1373026.18}, "MMD_Personalizado": {"P_temp": 130385.91, "P_dot": 383690.82, "P_ord": 239059.1, "PU_renta": 16034005.44, "P_renta": 1231902.59}}, {"persona": {"id": 10, "nombre": "Gustavo Hern\u00e1ndez", "edad": 33, "sexo": "M", "region": "NAC", "grupo_riesgo": "Bajo riesgo (oficina, activo)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 25371.74, "P_dot": 335311.81, "P_ord": 102892.81, "PU_renta": 20512475.64, "P_renta": 1476748.91}, "GLO": {"P_temp": 24011.8, "P_dot": 334855.22, "P_ord": 96790.71, "PU_renta": 20772483.3, "P_renta": 1494519.11}, "Ensemble": {"P_temp": 29450.46, "P_dot": 337302.41, "P_ord": 108847.03, "PU_renta": 20264967.93, "P_renta": 1462964.09}, "MMD_Est\u00e1ndar": {"P_temp": 29450.5, "P_dot": 337302.42, "P_ord": 108860.6, "PU_renta": 20264410.71, "P_renta": 1462923.88}, "MMD_Personalizado": {"P_temp": 25944.93, "P_dot": 335569.76, "P_ord": 103722.05, "PU_renta": 20477643.74, "P_renta": 1474769.48}}, {"persona": {"id": 11, "nombre": "Mar\u00eda Gonz\u00e1lez", "edad": 58, "sexo": "F", "region": "R02", "grupo_riesgo": "Nivel socioecon\u00f3mico bajo", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 140454.83, "P_dot": 391072.15, "P_ord": 269683.9, "PU_renta": 15283525.79, "P_renta": 1185524.04}, "GLO": {"P_temp": 124113.27, "P_dot": 381625.24, "P_ord": 246632.97, "PU_renta": 15841625.37, "P_renta": 1213849.69}, "Ensemble": {"P_temp": 156353.9, "P_dot": 398535.26, "P_ord": 279627.11, "PU_renta": 15054742.97, "P_renta": 1179013.16}, "MMD_Est\u00e1ndar": {"P_temp": 156360.87, "P_dot": 398537.03, "P_ord": 279702.8, "PU_renta": 15053027.57, "P_renta": 1178881.49}, "MMD_Personalizado": {"P_temp": 229876.87, "P_dot": 439512.05, "P_ord": 340990.29, "PU_renta": 13781590.2, "P_renta": 1135778.66}}, {"persona": {"id": 12, "nombre": "Hern\u00e1n D\u00edaz", "edad": 61, "sexo": "M", "region": "R05", "grupo_riesgo": "Nivel socioecon\u00f3mico bajo", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 295294.25, "P_dot": 478420.09, "P_ord": 402022.58, "PU_renta": 12712328.17, "P_renta": 1097119.01}, "GLO": {"P_temp": 267351.53, "P_dot": 460228.86, "P_ord": 367431.42, "PU_renta": 13297044.73, "P_renta": 1123393.17}, "Ensemble": {"P_temp": 330632.37, "P_dot": 500200.59, "P_ord": 421976.36, "PU_renta": 12397845.78, "P_renta": 1096981.19}, "MMD_Est\u00e1ndar": {"P_temp": 330688.38, "P_dot": 500220.0, "P_ord": 422102.67, "PU_renta": 12395904.61, "P_renta": 1096833.51}, "MMD_Personalizado": {"P_temp": 669908.05, "P_dot": 741251.43, "P_ord": 710973.21, "PU_renta": 9127513.81, "P_renta": 1027636.49}}, {"persona": {"id": 13, "nombre": "Javier Torres", "edad": 47, "sexo": "M", "region": "R04", "grupo_riesgo": "Trabajador de salud (exposici\u00f3n COVID)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 91523.51, "P_dot": 364666.43, "P_ord": 196041.8, "PU_renta": 17221865.55, "P_renta": 1290403.06}, "GLO": {"P_temp": 79774.27, "P_dot": 359445.71, "P_ord": 181546.06, "PU_renta": 17662806.28, "P_renta": 1314220.7}, "Ensemble": {"P_temp": 104354.07, "P_dot": 371145.24, "P_ord": 207212.72, "PU_renta": 16896798.2, "P_renta": 1276993.47}, "MMD_Est\u00e1ndar": {"P_temp": 104356.27, "P_dot": 371145.78, "P_ord": 207247.72, "PU_renta": 16895798.95, "P_renta": 1276918.87}, "MMD_Personalizado": {"P_temp": 74834.65, "P_dot": 357646.59, "P_ord": 168105.75, "PU_renta": 18092306.32, "P_renta": 1342923.11}}, {"persona": {"id": 14, "nombre": "Ana Fern\u00e1ndez", "edad": 38, "sexo": "F", "region": "R03", "grupo_riesgo": "Obesidad / Sedentarismo", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 24179.16, "P_dot": 334016.01, "P_ord": 103075.09, "PU_renta": 20504808.92, "P_renta": 1473539.95}, "GLO": {"P_temp": 21711.77, "P_dot": 333275.71, "P_ord": 96039.75, "PU_renta": 20804937.24, "P_renta": 1493567.92}, "Ensemble": {"P_temp": 28024.22, "P_dot": 336196.49, "P_ord": 107760.81, "PU_renta": 20309674.1, "P_renta": 1463945.43}, "MMD_Est\u00e1ndar": {"P_temp": 28024.26, "P_dot": 336196.5, "P_ord": 107778.61, "PU_renta": 20308939.9, "P_renta": 1463892.52}, "MMD_Personalizado": {"P_temp": 42192.6, "P_dot": 342719.39, "P_ord": 127536.82, "PU_renta": 19525445.5, "P_renta": 1420153.55}}, {"persona": {"id": 15, "nombre": "Leonardo Romero", "edad": 25, "sexo": "M", "region": "R03", "grupo_riesgo": "Riesgo alto (miner\u00eda, industria pesada)", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 16487.73, "P_dot": 331960.86, "P_ord": 74421.13, "PU_renta": 21784759.28, "P_renta": 1561044.11}, "GLO": {"P_temp": 15546.14, "P_dot": 331276.37, "P_ord": 70080.85, "PU_renta": 21992704.86, "P_renta": 1574439.61}, "Ensemble": {"P_temp": 18327.38, "P_dot": 332697.1, "P_ord": 78410.15, "PU_renta": 21597081.25, "P_renta": 1549185.6}, "MMD_Est\u00e1ndar": {"P_temp": 18327.39, "P_dot": 332697.1, "P_ord": 78418.77, "PU_renta": 21596679.0, "P_renta": 1549156.75}, "MMD_Personalizado": {"P_temp": 39088.41, "P_dot": 343293.73, "P_ord": 115773.21, "PU_renta": 19984468.33, "P_renta": 1454687.66}}, {"persona": {"id": 16, "nombre": "Paula Torres", "edad": 50, "sexo": "F", "region": "R01", "grupo_riesgo": "Nivel socioecon\u00f3mico bajo", "escenario_eco": "Base 2023", "capital": 10000000, "renta": 1000000, "duracion": 20}, "LC": {"P_temp": 70705.4, "P_dot": 356102.06, "P_ord": 180387.45, "PU_renta": 17699026.31, "P_renta": 1310997.76}, "GLO": {"P_temp": 60552.19, "P_dot": 350951.54, "P_ord": 165869.7, "PU_renta": 18165796.46, "P_renta": 1336215.91}, "Ensemble": {"P_temp": 77959.47, "P_dot": 359501.46, "P_ord": 187219.9, "PU_renta": 17487553.31, "P_renta": 1301278.31}, "MMD_Est\u00e1ndar": {"P_temp": 77960.32, "P_dot": 359501.68, "P_ord": 187259.36, "PU_renta": 17486346.53, "P_renta": 1301188.88}, "MMD_Personalizado": {"P_temp": 102641.96, "P_dot": 372449.22, "P_ord": 210659.85, "PU_renta": 16798951.78, "P_renta": 1271789.19}}];
+
+// ============================================================
+// FUNCIONES ACTUARIALES EN JAVASCRIPT
+// ============================================================
+function buildCommutation(qxArr, i) {
+  const v = 1.0 / (1.0 + i);
+  const n = qxArr.length;
+  const lx = new Array(n).fill(0);
+  lx[0] = 100000;
+  for (let x = 1; x < n; x++) lx[x] = lx[x-1] * (1 - Math.min(qxArr[x-1], 0.9999));
+  const dx = new Array(n).fill(0);
+  for (let x = 0; x < n-1; x++) dx[x] = lx[x] * qxArr[x];
+  dx[n-1] = lx[n-1];
+  const Dx = lx.map((l, x) => Math.pow(v, x) * l);
+  const Cx = dx.map((d, x) => Math.pow(v, x+1) * d);
+  const Mx = new Array(n).fill(0);
+  const Nx = new Array(n).fill(0);
+  Mx[n-1] = Cx[n-1]; Nx[n-1] = Dx[n-1];
+  for (let x = n-2; x >= 0; x--) { Mx[x] = Mx[x+1] + Cx[x]; Nx[x] = Nx[x+1] + Dx[x]; }
+  return { Dx, Mx, Nx };
+}
+
+function calcPrimas(x, n, capital, renta, i, comm) {
+  const { Dx, Mx, Nx } = comm;
+  const xn = Math.min(x + n, 100);
+  if (Dx[x] < 1e-10) return null;
+  const A_ord  = Mx[x] / Dx[x];
+  const A_temp = (Mx[x] - Mx[xn]) / Dx[x];
+  const A_dot  = (Mx[x] - Mx[xn] + Dx[xn]) / Dx[x];
+  const a_vita = Nx[x] / Dx[x];
+  const a_temp = (Nx[x] - Nx[xn]) / Dx[x];
+  const aS = Math.max(a_vita, 0.001), atS = Math.max(a_temp, 0.001);
+  return {
+    P_ord:  A_ord  * capital / aS,
+    P_temp: A_temp * capital / atS,
+    P_dot:  A_dot  * capital / atS,
+    PU_renta: a_vita * renta,
+    P_renta: a_vita * renta / atS,
+    a_vita, a_temp, A_ord, A_temp, A_dot,
+  };
+}
+
+function hrPorEdad(grupo, edad) {
+  const e = parseInt(edad);
+  const GR = {
+    'Estándar': (e) => 1.0,
+    'Bajo riesgo (oficina, activo)': (e) => e>=20&&e<=64 ? 0.88 : e>=65&&e<=79 ? 0.93 : 1.0,
+    'Riesgo moderado (construcción, transporte)': (e) => e>=18&&e<=29 ? 1.35 : e>=30&&e<=49 ? 1.55 : e>=50&&e<=64 ? 1.45 : e>=65&&e<=74 ? 1.20 : 1.0,
+    'Riesgo alto (minería, industria pesada)': (e) => e>=18&&e<=29 ? 1.80 : e>=30&&e<=49 ? 2.20 : e>=50&&e<=64 ? 2.50 : e>=65&&e<=74 ? 1.80 : 1.0,
+    'Fumador habitual': (e) => e>=20&&e<=39 ? 1.40 : e>=40&&e<=59 ? 2.20 : e>=60&&e<=74 ? 2.60 : e>=75&&e<=84 ? 2.00 : e>=85 ? 1.60 : 1.0,
+    'Obesidad / Sedentarismo': (e) => e>=20&&e<=39 ? 1.15 : e>=40&&e<=59 ? 1.50 : e>=60&&e<=74 ? 1.45 : e>=75&&e<=84 ? 1.25 : 1.0,
+    'Nivel socioeconómico bajo': (e) => e>=20&&e<=64 ? 1.40 : e>=65&&e<=79 ? 1.30 : e>=80 ? 1.15 : 1.0,
+    'Trabajador de salud (exposición COVID)': (e) => e>=20&&e<=64 ? 1.15 : 1.0,
+    'Perfil longevidad (dieta, ejercicio, no fumador)': (e) => e>=20&&e<=49 ? 0.75 : e>=50&&e<=69 ? 0.70 : e>=70&&e<=84 ? 0.78 : e>=85 ? 0.85 : 0.90,
+  };
+  return (GR[grupo] || (() => 1.0))(e);
+}
+
+function calcQxMMD(sexo, region, eco_name, grupo_riesgo, anio, qxBase) {
+  const eps = 1e-12;
+  const qxAdj = new Array(101).fill(0);
+  for (let x = 0; x <= 100; x++) {
+    const q = Math.min(Math.max(qxBase[x], eps), 1-eps);
+    const mu = -Math.log(1 - q);
+    let logMu = Math.log(Math.max(mu, eps));
+    // Regional
+    const alphaR = (AJUSTE_REGIONAL[region] || {[sexo]: 0})[sexo] || 0;
+    logMu += alphaR;
+    // Economic
+    const eco = ESCENARIOS_ECO[eco_name] || ECO_REF;
+    const dSal = eco.salario_real  - ECO_REF.salario_real;
+    const dInf = eco.inflacion_pct - ECO_REF.inflacion_pct;
+    logMu += BETA_ECO.salario_real * dSal + BETA_ECO.inflacion_pct * dInf;
+    // HR
+    const hr = Math.max(hrPorEdad(grupo_riesgo, x), eps);
+    logMu += Math.log(hr);
+    // Drift
+    const delta = (anio - ANIO_BASE) * (DRIFT[sexo] || -0.003);
+    logMu += delta;
+    logMu = Math.max(-12, Math.min(0, logMu));
+    const muAdj = Math.exp(logMu);
+    qxAdj[x] = muAdj < 0.5 ? muAdj / (1 + 0.5*muAdj) : 1 - Math.exp(-muAdj);
+  }
+  qxAdj[100] = 1.0;
+  return qxAdj;
+}
+
+// ============================================================
+// COTIZADOR INDIVIDUAL
+// ============================================================
+function calcularCotizacion() {
+  const edad    = parseInt(document.getElementById('inp-edad').value);
+  const sexo    = document.getElementById('inp-sexo').value;
+  const region  = document.getElementById('inp-region').value;
+  const grupo   = document.getElementById('inp-riesgo').value;
+  const eco     = document.getElementById('inp-eco').value;
+  const capital = parseFloat(document.getElementById('inp-capital').value);
+  const dur     = parseInt(document.getElementById('inp-dur').value);
+  const tasa    = parseFloat(document.getElementById('inp-tasa').value) / 100;
+  const renta   = parseFloat(document.getElementById('inp-renta').value);
+
+  if (edad < 18 || edad > 79) {
+    alert('Edad debe estar entre 18 y 79 años'); return;
+  }
+
+  const modelos = ['LC','GLO','Ensemble','MMD_Estándar','MMD_Personalizado'];
+  const colores = {'LC':'#2166AC','GLO':'#4DAC26','Ensemble':'#D6604D','MMD_Estándar':'#762A83','MMD_Personalizado':'#B8530A'};
+  const labels = {'LC':'Lee-Carter','GLO':'GLO','Ensemble':'Ensemble','MMD_Estándar':'MMD Estándar','MMD_Personalizado':'MMD Personalizado'};
+  const results = {};
+
+  for (const modelo of modelos) {
+    let qxBase = QX_TABLES[`${modelo}_${sexo}`] || QX_TABLES[`Ensemble_${sexo}`];
+    let qx;
+    if (modelo === 'MMD_Personalizado') {
+      qx = calcQxMMD(sexo, region, eco, grupo, ANIO_BASE, QX_TABLES[`Ensemble_${sexo}`]);
+    } else if (modelo === 'MMD_Estándar') {
+      qx = calcQxMMD(sexo, 'NAC', 'Base 2023', 'Estándar', ANIO_BASE, QX_TABLES[`Ensemble_${sexo}`]);
+    } else {
+      qx = qxBase;
+    }
+    const comm = buildCommutation(qx, tasa);
+    results[modelo] = calcPrimas(edad, dur, capital, renta, tasa, comm);
+  }
+
+  // Renderizar resultados
+  const fmt = v => '$' + v.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const pct_diff = r => {
+    const ens = results['Ensemble'] ? results['Ensemble'].P_temp : 0;
+    const mmd = results['MMD_Personalizado'] ? results['MMD_Personalizado'].P_temp : 0;
+    const d = ens > 0 ? (mmd - ens)/ens*100 : 0;
+    return d >= 0 ? `<span class="text-danger">+${d.toFixed(1)}%</span>` : `<span class="text-success">${d.toFixed(1)}%</span>`;
+  };
+
+  const productos = [
+    ['P_temp', '🛡️ Temporario', 'Prima anual por n años'],
+    ['P_dot',  '🎯 Dotal Mixto', 'Prima anual por n años'],
+    ['P_ord',  '♾️ Ordinario', 'Prima anual de por vida'],
+    ['PU_renta','💰 Renta Vit.', 'Prima única (VA renta)'],
+  ];
+
+  let html = `<div class="alert alert-primary py-2 mb-3 small">
+    <b>Perfil:</b> ${sexo}/${edad}a — ${region} — ${grupo.substring(0,40)}
+    | <b>Δ MMD Pers. vs Ensemble:</b> ${pct_diff()}
+  </div>
+  <div class="table-responsive">
+  <table class="table table-sm table-bordered align-middle">
+  <thead><tr><th>Producto</th>`;
+  for (const m of modelos) {
+    html += `<th class="text-center" style="background:${colores[m]};color:white;font-size:.78rem">${labels[m]}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+  for (const [key, label, desc] of productos) {
+    html += `<tr><td><b>${label}</b><br><small class="text-muted">${desc}</small></td>`;
+    for (const m of modelos) {
+      const v = results[m] ? results[m][key] : 0;
+      const isMMDp = m === 'MMD_Personalizado';
+      html += `<td class="text-center${isMMDp ? ' table-warning fw-bold' : ''}" style="font-size:.9rem">${fmt(v)}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+  html += `<div class="row g-2 mt-1">
+    <div class="col-4"><div class="cotizador-result text-center">
+      <div class="prima-val">${fmt(results['Ensemble'].a_vita)}</div>
+      <div class="small">ä_x (renta vitalicia)</div>
+    </div></div>
+    <div class="col-4"><div class="cotizador-result text-center">
+      <div class="prima-val">${fmt(results['Ensemble'].a_temp)}</div>
+      <div class="small">ä_x:n (renta temporal)</div>
+    </div></div>
+    <div class="col-4"><div class="cotizador-result text-center">
+      <div class="prima-val">${(results['Ensemble'].A_temp*100).toFixed(2)}%</div>
+      <div class="small">A¹ (APV temporario)</div>
+    </div></div>
+  </div>`;
+
+  document.getElementById('cotizador-output').innerHTML = html;
+}
+
+// ============================================================
+// CHARTS (Chart.js)
+// ============================================================
+window.addEventListener('load', function() {
+  const personas  = PERSONAS;
+  const results   = RESULTADOS;
+  const colores   = {'LC':'#2166AC','GLO':'#4DAC26','Ensemble':'#D6604D','MMD_Estándar':'#762A83','MMD_Personalizado':'#B8530A'};
+  const labelMods = {'LC':'Lee-Carter','GLO':'GLO','Ensemble':'Ensemble','MMD_Estándar':'MMD Estándar','MMD_Personalizado':'MMD Personalizado'};
+  const modelos   = ['LC','GLO','Ensemble','MMD_Estándar','MMD_Personalizado'];
+  const nombres   = personas.map(p => p.nombre.split(' ')[0]);
+
+  // Helper: obtener P_temp de resultados por persona y modelo
+  const getVal = (pid, modelo, campo) => {
+    const r = results.find(r => r.id == pid && r.modelo === modelo);
+    return r ? (r[campo] || 0) : 0;
+  };
+
+  // Chart 1: Prima Temporario por persona y modelo
+  const ctx1 = document.getElementById('chartTemporario');
+  if (ctx1) {
+    new Chart(ctx1.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: nombres,
+        datasets: modelos.map(m => ({
+          label: labelMods[m],
+          data: personas.map(p => getVal(p.id, m, 'P_temp') / 1000),
+          backgroundColor: colores[m] + 'CC',
+          borderColor: colores[m],
+          borderWidth: 1,
+        })),
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'top', labels: { font: { size: 10 } } } },
+        scales: {
+          x: { ticks: { font: { size: 9 } } },
+          y: { title: { display: true, text: 'Prima (miles ARS)' },
+               ticks: { callback: v => '$' + v.toFixed(0) + 'K' } }
+        }
+      }
+    });
+  }
+
+  // Chart 2: Distribución primas (min/max/avg por modelo)
+  const ctx2 = document.getElementById('chartBoxplot');
+  if (ctx2) {
+    const avgByModel = modelos.map(m => {
+      const vals = personas.map(p => getVal(p.id, m, 'P_temp') / 1000);
+      return vals.reduce((a,b) => a+b, 0) / vals.length;
+    });
+    new Chart(ctx2.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: modelos.map(m => labelMods[m]),
+        datasets: [{
+          label: 'Prima promedio temporario (K ARS)',
+          data: avgByModel,
+          backgroundColor: modelos.map(m => colores[m] + 'BB'),
+          borderColor: modelos.map(m => colores[m]),
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { title: { display: true, text: 'Miles ARS' },
+               ticks: { callback: v => '$' + v.toFixed(0) + 'K' } }
+        }
+      }
+    });
+  }
+
+  // Chart 3: Diferencial MMD vs Ensemble
+  const ctx3 = document.getElementById('chartDiff');
+  if (ctx3) {
+    const diffs = personas.map(p => {
+      const ens = getVal(p.id, 'Ensemble', 'P_temp');
+      const mmd = getVal(p.id, 'MMD_Personalizado', 'P_temp');
+      return ens > 0 ? (mmd - ens)/ens*100 : 0;
+    });
+    new Chart(ctx3.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: nombres,
+        datasets: [{
+          label: 'Δ% MMD Personalizado vs Ensemble',
+          data: diffs,
+          backgroundColor: diffs.map(d => d >= 0 ? '#D6604DBB' : '#4DAC26BB'),
+          borderColor: diffs.map(d => d >= 0 ? '#D6604D' : '#4DAC26'),
+          borderWidth: 1,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ctx.raw.toFixed(1) + '%' } } },
+        scales: {
+          y: { title: { display: true, text: '% diferencial' },
+               ticks: { callback: v => v.toFixed(1) + '%' } }
+        }
+      }
+    });
+  }
+
+  // Chart 4: Promedio por producto y modelo
+  const ctx4 = document.getElementById('chartProductos');
+  if (ctx4) {
+    const productos_keys = ['P_temp','P_dot','P_ord','PU_renta'];
+    const prod_labels = ['Temporario','Dotal','Ordinario','Renta Vit. (PU)'];
+    new Chart(ctx4.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: prod_labels,
+        datasets: modelos.map(m => ({
+          label: labelMods[m],
+          data: productos_keys.map(pk => {
+            const vals = personas.map(p => getVal(p.id, m, pk) / 1000);
+            return vals.reduce((a,b)=>a+b,0)/vals.length;
+          }),
+          backgroundColor: colores[m] + 'CC',
+          borderColor: colores[m],
+          borderWidth: 1,
+        }))
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'top', labels: { font: { size: 10 } } } },
+        scales: {
+          y: { title: { display: true, text: 'Prima promedio (miles ARS)' },
+               ticks: { callback: v => '$' + v.toFixed(0) + 'K' } }
+        }
+      }
+    });
+  }
+});
+</script>
+</body>
+</html>

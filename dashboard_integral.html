@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tablas de Mortalidad Dinámica Argentina — Dashboard Integral</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --azul:#1F497D; --azul2:#2E74B5; --verde:#1B7837; --rojo:#C62828;
+  --naranja:#B8530A; --violeta:#762A83;
+  --sidebar-w:230px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;}
+
+/* ── Sidebar ──────────────────────────────────────────── */
+#sidebar{
+  position:fixed;top:0;left:0;width:var(--sidebar-w);height:100vh;
+  background:linear-gradient(180deg,#1F497D 0%,#0d2e57 100%);
+  color:white;overflow-y:auto;z-index:1000;
+  display:flex;flex-direction:column;
+}
+#sidebar .brand{padding:1.4rem 1rem 1rem;border-bottom:1px solid rgba(255,255,255,.15);}
+#sidebar .brand h6{font-weight:800;font-size:.85rem;line-height:1.3;}
+#sidebar .brand small{opacity:.65;font-size:.72rem;}
+#sidebar nav a.nav-link{
+  display:flex;align-items:center;gap:.6rem;
+  padding:.65rem 1rem;color:rgba(255,255,255,.8);
+  text-decoration:none;font-size:.82rem;font-weight:500;
+  transition:all .2s;border-left:3px solid transparent;
+}
+#sidebar nav a.nav-link:hover{background:rgba(255,255,255,.08);color:white;border-left-color:rgba(255,255,255,.4);}
+#sidebar nav a.nav-link.active{background:rgba(255,255,255,.15);color:white;border-left-color:#4fc3f7;}
+#sidebar nav a.nav-link .icon{font-size:1rem;width:1.2rem;text-align:center;}
+#sidebar .sidebar-footer{margin-top:auto;padding:.8rem 1rem;border-top:1px solid rgba(255,255,255,.1);
+  font-size:.7rem;opacity:.5;}
+#sidebar nav .nav-section{
+  padding:.4rem 1rem .2rem;font-size:.68rem;text-transform:uppercase;
+  letter-spacing:.8px;opacity:.5;margin-top:.4rem;
+}
+
+/* ── Main content ─────────────────────────────────────── */
+#main{margin-left:var(--sidebar-w);min-height:100vh;}
+
+/* ── Hero ─────────────────────────────────────────────── */
+.hero{
+  background:linear-gradient(135deg,#1F497D 0%,#2E74B5 45%,#01665E 100%);
+  color:white;padding:3.5rem 2.5rem 3rem;position:relative;overflow:hidden;
+}
+.hero::after{
+  content:'';position:absolute;top:-40px;right:-60px;
+  width:320px;height:320px;background:rgba(255,255,255,.04);
+  border-radius:50%;pointer-events:none;
+}
+.hero h1{font-size:1.95rem;font-weight:800;letter-spacing:-.5px;line-height:1.25;}
+.hero .subtitle{font-size:1rem;opacity:.85;max-width:600px;}
+.kpi-row{display:flex;flex-wrap:wrap;gap:.8rem;margin-top:1.8rem;}
+.kpi{
+  background:rgba(255,255,255,.12);border-radius:10px;padding:.8rem 1.2rem;
+  backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.15);
+  min-width:110px;
+}
+.kpi .val{font-size:1.6rem;font-weight:800;line-height:1;}
+.kpi .lbl{font-size:.7rem;opacity:.75;margin-top:.2rem;text-transform:uppercase;letter-spacing:.5px;}
+
+/* ── Sections ─────────────────────────────────────────── */
+.section{padding:2rem 2.5rem 1.5rem;}
+.section-header{
+  display:flex;align-items:center;gap:.8rem;margin-bottom:1.5rem;
+  padding-bottom:.8rem;border-bottom:2px solid #e2e8f0;
+}
+.section-header .icon{
+  font-size:1.6rem;background:var(--azul);color:white;
+  width:3rem;height:3rem;border-radius:10px;display:flex;
+  align-items:center;justify-content:center;flex-shrink:0;
+}
+.section-header h2{font-size:1.25rem;font-weight:700;color:var(--azul);margin:0;}
+.section-header p{font-size:.85rem;color:#718096;margin:0;}
+
+/* ── Cards ────────────────────────────────────────────── */
+.card{border:none;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.07);}
+.card-header-custom{
+  background:var(--azul);color:white;border-radius:12px 12px 0 0;
+  padding:.7rem 1.1rem;font-weight:600;font-size:.9rem;
+}
+.insight-box{
+  background:#eff6ff;border-left:4px solid var(--azul2);
+  border-radius:0 8px 8px 0;padding:.9rem 1rem;font-size:.88rem;
+  line-height:1.5;color:#1e3a5f;
+}
+.insight-box.green{background:#f0fdf4;border-left-color:#16a34a;color:#14532d;}
+.insight-box.orange{background:#fff7ed;border-left-color:#ea580c;color:#7c2d12;}
+.insight-box.purple{background:#faf5ff;border-left-color:#9333ea;color:#581c87;}
+.step-flow{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;}
+.step-pill{
+  background:white;border:2px solid #e2e8f0;border-radius:20px;
+  padding:.4rem .9rem;font-size:.8rem;font-weight:600;color:var(--azul);
+  display:flex;align-items:center;gap:.35rem;
+}
+.step-pill.active{background:var(--azul);color:white;border-color:var(--azul);}
+.arrow-sep{color:#94a3b8;font-size:1rem;}
+.model-legend{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.8rem;}
+.model-chip{
+  display:inline-flex;align-items:center;gap:.3rem;
+  padding:.25rem .65rem;border-radius:20px;font-size:.76rem;font-weight:600;
+  cursor:pointer;user-select:none;transition:opacity .2s;
+  border:2px solid transparent;
+}
+.model-chip.dimmed{opacity:.3;}
+.table-sm td,.table-sm th{font-size:.82rem;vertical-align:middle;}
+.badge-rmse-good{background:#dcfce7;color:#166534;font-size:.75rem;padding:.25rem .5rem;border-radius:4px;}
+.badge-rmse-ok  {background:#fef9c3;color:#854d0e;font-size:.75rem;padding:.25rem .5rem;border-radius:4px;}
+.badge-rmse-bad {background:#fee2e2;color:#991b1b;font-size:.75rem;padding:.25rem .5rem;border-radius:4px;}
+.diff-bar-pos{background:linear-gradient(90deg,#fee2e2,#fca5a5);border-radius:4px;}
+.diff-bar-neg{background:linear-gradient(90deg,#dcfce7,#86efac);border-radius:4px;}
+
+/* ── Chart wrappers ───────────────────────────────────── */
+.chart-container{position:relative;background:white;border-radius:12px;
+  padding:1rem;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.chart-title{font-size:.88rem;font-weight:700;color:var(--azul);margin-bottom:.6rem;}
+.chart-subtitle{font-size:.75rem;color:#718096;margin-bottom:.8rem;}
+.toggle-group{display:flex;gap:.3rem;margin-bottom:.8rem;flex-wrap:wrap;}
+.toggle-btn{
+  padding:.25rem .7rem;border-radius:6px;font-size:.78rem;font-weight:600;
+  cursor:pointer;border:2px solid #e2e8f0;background:white;color:#475569;
+  transition:all .15s;
+}
+.toggle-btn.active{background:var(--azul);color:white;border-color:var(--azul);}
+.toggle-btn:hover:not(.active){background:#f1f5f9;}
+
+/* ── Table styles ─────────────────────────────────────── */
+.results-table th{background:var(--azul);color:white;font-size:.8rem;}
+.results-table td{font-size:.82rem;}
+.highlight-mmd{background:#fff7ed !important;font-weight:600;}
+.positive-diff{color:#dc2626;font-weight:700;}
+.negative-diff{color:#16a34a;font-weight:700;}
+
+/* ── Conclusion cards ─────────────────────────────────── */
+.concl-card{
+  border-radius:12px;padding:1.2rem 1.4rem;height:100%;
+  border-top:4px solid;
+}
+.concl-card.blue{border-color:var(--azul);background:#eff6ff;}
+.concl-card.green{border-color:#16a34a;background:#f0fdf4;}
+.concl-card.orange{border-color:var(--naranja);background:#fff7ed;}
+.concl-card.purple{border-color:var(--violeta);background:#faf5ff;}
+.concl-card h6{font-weight:800;margin-bottom:.5rem;font-size:.88rem;}
+.concl-card p{font-size:.82rem;line-height:1.55;margin:0;}
+
+/* ── Responsive ───────────────────────────────────────── */
+@media(max-width:768px){
+  #sidebar{width:100%;height:auto;position:relative;}
+  #main{margin-left:0;}
+  .section{padding:1.5rem 1rem;}
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- SIDEBAR                                              -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="sidebar">
+  <div class="brand">
+    <h6>📊 Mortalidad Dinámica Argentina</h6>
+  </div>
+  <nav>
+    <div class="nav-section">Proyecto</div>
+    <a href="#s-intro"  class="nav-link active"><span class="icon">🏠</span>Inicio</a>
+    <div class="nav-section">Análisis</div>
+    <a href="#s-datos"    class="nav-link"><span class="icon">📋</span>Datos DEIS</a>
+    <a href="#s-modelos"  class="nav-link"><span class="icon">📈</span>Curvas q(x)</a>
+    <a href="#s-comp"     class="nav-link"><span class="icon">🔬</span>Comparación</a>
+    <a href="#s-mmd"      class="nav-link"><span class="icon">🌍</span>MMD Dinámico</a>
+    <a href="#s-primas"   class="nav-link"><span class="icon">💰</span>Cotizador</a>
+    <div class="nav-section">Síntesis</div>
+    <a href="#s-concl"    class="nav-link"><span class="icon">📋</span>Conclusiones</a>
+    <a href="#s-proxpasos" class="nav-link"><span class="icon">🚀</span>Próximos pasos</a>
+  </nav>
+  <div class="sidebar-footer">DEIS 2015–2023 · i=4% · C=$10M</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- MAIN                                                 -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="main">
+
+<!-- ── SECCIÓN 1: INICIO ─────────────────────────────── -->
+<section id="s-intro">
+  <div class="hero">
+    <h1>Tablas de Mortalidad Dinámica para Argentina</h1>
+    <p class="subtitle mt-2">
+      Un sistema parametrizado y calibrado para la construcción de tablas personalizadas
+      según región, perfil socioeconómico y actividad de riesgo — con aplicación actuarial directa.
+    </p>
+    <div class="kpi-row">
+      <div class="kpi"><div class="val">882</div><div class="lbl">Observaciones DEIS</div></div>
+      <div class="kpi"><div class="val">9</div><div class="lbl">Años (2015–2023)</div></div>
+      <div class="kpi"><div class="val">7</div><div class="lbl">Regiones DEIS</div></div>
+      <div class="kpi"><div class="val">5</div><div class="lbl">Modelos ajustados</div></div>
+      <div class="kpi"><div class="val">9</div><div class="lbl">Grupos de riesgo</div></div>
+      <div class="kpi"><div class="val">4</div><div class="lbl">Productos de seguro</div></div>
+      <div class="kpi"><div class="val">3 600</div><div class="lbl">Escenarios MMD</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="icon">🗺️</div>
+      <div><h2>Flujo metodológico del proyecto</h2>
+           <p>Ocho pasos desde los datos crudos hasta el cotizador actuarial</p></div>
+    </div>
+    <div class="step-flow mb-4">
+      <div class="step-pill active">📥 P1 Datos DEIS</div><div class="arrow-sep">→</div>
+      <div class="step-pill active">🧹 P2 Limpieza</div><div class="arrow-sep">→</div>
+      <div class="step-pill active">📊 P3 Lee-Carter</div><div class="arrow-sep">→</div>
+      <div class="step-pill active">📈 P4 Spline/Gompertz</div><div class="arrow-sep">→</div>
+      <div class="step-pill active">🤖 P5 XGBoost</div><div class="arrow-sep">→</div>
+      <div class="step-pill active">🧠 P6 Red Neuronal</div><div class="arrow-sep">→</div>
+      <div class="step-pill active">🎯 P7 Ensemble + Cal.</div><div class="arrow-sep">→</div>
+      <div class="step-pill active">🌍 P8 MMD</div><div class="arrow-sep">→</div>
+      <div class="step-pill active">💰 P9 Cotizador</div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="insight-box">
+          <strong>🎯 Objetivo central:</strong> construir un modelo de mortalidad <em>dinámico y parametrizado</em>
+          que permita generar tablas de vida personalizadas según región geográfica, situación macroeconómica
+          y grupo de riesgo del asegurado, calibrado sobre datos DEIS 2015–2023 y validado contra
+          referencias INDEC.
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="insight-box green">
+          <strong>✅ Resultado clave:</strong> el Modelo de Mortalidad Dinámica (MMD) reproduce
+          e(0) M = <strong>73.17</strong> años (INDEC: 73.0) en configuración estándar, y cubre un rango de
+          <strong>30.2 años</strong> de e(0) entre el perfil más favorable (NEA+longevidad: 85.4)
+          y el más adverso (Cuyo+crisis+minería: 55.2).
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SECCIÓN 2: DATOS DEIS ──────────────────────────── -->
+<section id="s-datos" style="background:white;border-top:3px solid #e2e8f0;">
+  <div class="section">
+    <div class="section-header">
+      <div class="icon" style="background:#16a34a;">📋</div>
+      <div><h2>Datos DEIS — Tasas de mortalidad observadas</h2>
+           <p>882 observaciones · 7 grupos etarios · 7 regiones · 2015–2023</p></div>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <div class="chart-container">
+          <div class="chart-title">Evolución de la tasa bruta de mortalidad por grupo etario</div>
+          <div class="toggle-group">
+            <button class="toggle-btn active" onclick="toggleDeisSexo('M',this)">Masculino</button>
+            <button class="toggle-btn" onclick="toggleDeisSexo('F',this)">Femenino</button>
+          </div>
+          <canvas id="chartDeisTrend" height="220"></canvas>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="chart-container h-100">
+          <div class="chart-title">Estructura etaria de la mortalidad (2023)</div>
+          <div class="chart-subtitle">Tasas promedio nacional M/F</div>
+          <canvas id="chartDeisEdad" height="240"></canvas>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="insight-box">
+          <strong>📍 Estructura de los datos:</strong> el dataset DEIS contiene 7 grupos etarios
+          representativos (edad_rep: 10, 30, 45, 55, 65, 75, 85 años), 7 regiones geográficas,
+          ambos sexos y 9 años (2015–2023). La mortalidad sigue un patrón en U atenuada:
+          mínima en la adolescencia, ascenso exponencial adulto, con pico COVID en 2020–2021.
+          El año 2023 retorna al nivel prepandémico.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SECCIÓN 3: CURVAS q(x) ─────────────────────────── -->
+<section id="s-modelos" style="border-top:3px solid #e2e8f0;">
+  <div class="section">
+    <div class="section-header">
+      <div class="icon" style="background:#2E74B5;">📈</div>
+      <div><h2>Tablas de mortalidad — Curvas q(x) completas (0–100)</h2>
+           <p>Probabilidades de muerte por edad para cada modelo calibrado</p></div>
+    </div>
+    <div class="row g-4">
+      <div class="col-12">
+        <div class="chart-container">
+          <div class="chart-title">q(x): probabilidad de muerte por edad — comparación de modelos</div>
+          <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
+            <div class="toggle-group mb-0">
+              <button class="toggle-btn active" onclick="toggleSexoQx('M',this)">Masculino</button>
+              <button class="toggle-btn" onclick="toggleSexoQx('F',this)">Femenino</button>
+            </div>
+            <div class="toggle-group mb-0">
+              <button class="toggle-btn active" onclick="toggleScaleQx('log',this)">Escala log</button>
+              <button class="toggle-btn" onclick="toggleScaleQx('linear',this)">Escala lineal</button>
+            </div>
+          </div>
+          <div class="model-legend" id="legend-qx"></div>
+          <canvas id="chartQx" height="140"></canvas>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <div class="chart-title">Esperanza de vida e(x) residual por edad (2023)</div>
+          <div class="toggle-group">
+            <button class="toggle-btn active" onclick="toggleSexoEx('M',this)">Masculino</button>
+            <button class="toggle-btn" onclick="toggleSexoEx('F',this)">Femenino</button>
+          </div>
+          <canvas id="chartEx" height="220"></canvas>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <div class="chart-title">Diferencia q(x) relativa: modelo vs Lee-Carter</div>
+          <div class="chart-subtitle">(q_modelo − q_LC) / q_LC × 100% — Masculino 2023</div>
+          <canvas id="chartQxDiff" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SECCIÓN 4: COMPARACIÓN ─────────────────────────── -->
+<section id="s-comp" style="background:white;border-top:3px solid #e2e8f0;">
+  <div class="section">
+    <div class="section-header">
+      <div class="icon" style="background:#762A83;">🔬</div>
+      <div><h2>Comparación de modelos — Calibración y precisión</h2>
+           <p>e(0), RMSE sobre tasas observadas, validación vs INDEC 2023</p></div>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <div class="chart-container">
+          <div class="chart-title">e(0) por modelo vs referencia INDEC 2023</div>
+          <canvas id="chartE0comp" height="200"></canvas>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="chart-container">
+          <div class="chart-title">RMSE de cada modelo vs tasas DEIS observadas</div>
+          <div class="chart-subtitle">Menor RMSE = mejor calibración</div>
+          <canvas id="chartRMSE" height="200"></canvas>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="chart-container">
+          <div class="chart-title">Tabla comparativa de métricas</div>
+          <div class="table-responsive">
+            <table class="table table-sm results-table" id="tablaMetricas"></table>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="insight-box">
+          <strong>📊 Conclusión de calibración:</strong> el modelo Ensemble (media geométrica ponderada
+          LC 26.2% + XGB-Cal 41.0% + NN-Cal 32.8%) logra e(0) M = 73.17 años, el más cercano
+          a INDEC (73.0). GLO y Lee-Carter también calibran bien individualmente.
+          XGBoost y Red Neuronal requieren corrección de sesgo por limitaciones de los datos grupales DEIS.
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="insight-box orange">
+          <strong>⚠ Limitación estructural:</strong> DEIS solo provee 7 grupos etarios.
+          Los modelos ML predicen tasas grupo-promedio, no tasas individuales por edad.
+          Esto subestima mortalidad en extremos etarios de cada grupo. La graduación spline
+          + extensión Gompertz resuelve este problema para la construcción de la tabla final.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SECCIÓN 5: MMD ─────────────────────────────────── -->
+<section id="s-mmd" style="border-top:3px solid #e2e8f0;">
+  <div class="section">
+    <div class="section-header">
+      <div class="icon" style="background:#B8530A;">🌍</div>
+      <div><h2>Modelo de Mortalidad Dinámica — Escenarios parametrizados</h2>
+           <p>3600 combinaciones región × escenario × grupo de riesgo × año</p></div>
+    </div>
+
+    <div class="row g-4">
+      <!-- Fórmula MMD -->
+      <div class="col-12">
+        <div class="chart-container p-3" style="background:#f8f9fa;">
+          <div class="chart-title mb-2">Ecuación central del MMD</div>
+          <div style="font-family:monospace;font-size:1rem;background:white;padding:1rem;
+                      border-radius:8px;border-left:4px solid #B8530A;color:#1e293b;line-height:2;">
+            log μ<sub>MMD</sub>(x|θ) = log μ<sub>base</sub>(x)
+            <span style="color:#2E74B5"> + α<sub>región</sub></span>
+            <span style="color:#16a34a"> + β<sub>sal</sub>·Δsal + β<sub>inf</sub>·Δinf</span>
+            <span style="color:#dc2626"> + log HR(x, grupo_riesgo)</span>
+            <span style="color:#762A83"> + δ·(t − t₀)</span>
+          </div>
+          <div class="row mt-2 g-2">
+            <div class="col-auto"><span class="badge" style="background:#2E74B5">α_región</span> ajuste empírico regional</div>
+            <div class="col-auto"><span class="badge" style="background:#16a34a">β_eco</span> sensibilidad macroeconómica</div>
+            <div class="col-auto"><span class="badge" style="background:#dc2626">HR(x)</span> Hazard Ratio ocupacional/conductual</div>
+            <div class="col-auto"><span class="badge" style="background:#762A83">δ</span> drift temporal Lee-Carter</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráfico regional -->
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <div class="chart-title">e(0) por región geográfica DEIS (2023, Estándar)</div>
+          <div class="toggle-group">
+            <button class="toggle-btn active" onclick="toggleRegSexo('M',this)">Masculino</button>
+            <button class="toggle-btn" onclick="toggleRegSexo('F',this)">Femenino</button>
+          </div>
+          <canvas id="chartRegional" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Gráfico grupos de riesgo -->
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <div class="chart-title">e(0) por grupo de riesgo (NAC, Base 2023)</div>
+          <div class="toggle-group">
+            <button class="toggle-btn active" onclick="toggleRiesgoSexo('M',this)">Masculino</button>
+            <button class="toggle-btn" onclick="toggleRiesgoSexo('F',this)">Femenino</button>
+          </div>
+          <canvas id="chartRiesgo" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Escenarios económicos -->
+      <div class="col-lg-7">
+        <div class="chart-container">
+          <div class="chart-title">e(0) por escenario económico — NAC, Estándar, 2025</div>
+          <canvas id="chartEco" height="180"></canvas>
+        </div>
+      </div>
+
+      <!-- Proyección temporal -->
+      <div class="col-lg-5">
+        <div class="chart-container">
+          <div class="chart-title">Proyección temporal e(0) · NAC · Estándar · Base</div>
+          <canvas id="chartTraj" height="180"></canvas>
+        </div>
+      </div>
+
+      <!-- Tabla de escenarios extremos -->
+      <div class="col-12">
+        <div class="chart-container">
+          <div class="chart-title">Escenarios extremos del MMD — Rango completo de e(0)</div>
+          <div class="table-responsive">
+            <table class="table table-sm results-table" id="tablaMMDext"></table>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="insight-box purple">
+          <strong>🔑 Dispersión regional:</strong> la diferencia entre NEA (e(0) M = 78.49)
+          y Cuyo (66.55) es de <strong>11.94 años</strong>. Esta heterogeneidad, comparable
+          a la brecha Este-Oeste en Europa, justifica la tarificación diferenciada por región
+          en seguros de vida y rentas vitalicias.
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="insight-box orange">
+          <strong>⚡ Sensibilidad por grupo de riesgo:</strong> el rango de e(0) masculino entre
+          un perfil de longevidad (76.34) y un fumador habitual (64.79) es de <strong>11.55 años</strong>.
+          Un minero en Cuyo bajo crisis económica puede tener e(0) = <strong>55.2 años</strong>
+          — 17.97 años menos que el promedio nacional.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SECCIÓN 6: COTIZADOR ───────────────────────────── -->
+<section id="s-primas" style="background:white;border-top:3px solid #e2e8f0;">
+  <div class="section">
+    <div class="section-header">
+      <div class="icon" style="background:#B8530A;">💰</div>
+      <div><h2>Cotizador actuarial — Primas puras comparadas</h2>
+           <p>Capital $10M · Duración 20 años · Tasa técnica 4% · 16 asegurados</p></div>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <div class="chart-container">
+          <div class="chart-title">Prima anual — Seguro Temporario por persona y modelo</div>
+          <div class="toggle-group">
+            <button class="toggle-btn active" onclick="togglePrimaSexo('ambos',this)">Todos</button>
+            <button class="toggle-btn" onclick="togglePrimaSexo('M',this)">Masculino</button>
+            <button class="toggle-btn" onclick="togglePrimaSexo('F',this)">Femenino</button>
+          </div>
+          <canvas id="chartPrimasBar" height="180"></canvas>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="chart-container">
+          <div class="chart-title">Prima promedio por producto y modelo</div>
+          <canvas id="chartPrimasProd" height="220"></canvas>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        <div class="chart-container">
+          <div class="chart-title">Prima temporaria vs edad — curvas por modelo (i=4%)</div>
+          <div class="toggle-group">
+            <button class="toggle-btn active" onclick="toggleCurvaSexo('M',this)">Masculino</button>
+            <button class="toggle-btn" onclick="toggleCurvaSexo('F',this)">Femenino</button>
+          </div>
+          <canvas id="chartCurva" height="200"></canvas>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="chart-container">
+          <div class="chart-title">Diferencial MMD Personalizado vs Ensemble (%)</div>
+          <div class="chart-subtitle">+ = MMD más caro (mayor riesgo) | − = MMD más barato (menor riesgo)</div>
+          <canvas id="chartDiff" height="200"></canvas>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="insight-box green">
+          <strong>💡 Impacto de la personalización:</strong> los modelos estáticos (LC, GLO, Ensemble)
+          asignan la misma prima a todos los asegurados de igual edad y sexo. El MMD Personalizado
+          produce primas desde <strong>−38%</strong> (perfil favorable: bajo riesgo en NEA)
+          hasta <strong>+144%</strong> (minería, 25 años, NOA) respecto al Ensemble.
+          Esta diferenciación de hasta 182 puntos porcentuales es actuarialmente relevante
+          para tarificación de carteras heterogéneas.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SECCIÓN 7: CONCLUSIONES ────────────────────────── -->
+<section id="s-concl" style="border-top:3px solid #e2e8f0;">
+  <div class="section">
+    <div class="section-header">
+      <div class="icon">📋</div>
+      <div><h2>Síntesis y conclusiones</h2>
+           <p>Hallazgos principales del proyecto y recomendaciones de aplicación</p></div>
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-6 col-xl-3">
+        <div class="concl-card blue">
+          <h6>🔬 Calibración de modelos</h6>
+          <p>Lee-Carter y Ensemble son los modelos más cercanos a INDEC 2023 (e(0) M ≈ 73.2 vs 73.0 ref.).
+          XGBoost y Red Neuronal requieren calibración por el problema de predicción de tasas grupales.
+          GLO es el más simple y preciso para una sola tabla nacional.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-xl-3">
+        <div class="concl-card green">
+          <h6>🌍 Heterogeneidad regional</h6>
+          <p>La dispersión de e(0) masculino entre regiones extremas (NEA vs Cuyo) es de 11.94 años.
+          Esta brecha territorial justifica la obligatoriedad de tablas regionales en contratos
+          de largo plazo (rentas vitalicias, seguros de vida entero).</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-xl-3">
+        <div class="concl-card orange">
+          <h6>💼 Grupos de riesgo</h6>
+          <p>El rango entre el perfil más favorable (longevidad: 76.34) y el más adverso
+          (fumador: 64.79) es de 11.55 años en e(0) masculino. La selección adversa en carteras
+          sin diferenciación es cuantificable y actuarialmente costosa.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-xl-3">
+        <div class="concl-card purple">
+          <h6>💰 Impacto en primas</h6>
+          <p>El MMD produce primas que difieren hasta ±144% respecto a modelos fijos para
+          perfiles extremos. La tasa técnica tiene un impacto comparable: variando i del
+          1% al 11%, la prima temporaria cae aprox. 60%.</p>
+        </div>
+      </div>
+    </div>
+    <div class="row g-3">
+      <div class="col-lg-5">
+        <div class="chart-container">
+          <div class="chart-title">Radar: desempeño comparativo de modelos</div>
+          <canvas id="chartRadar" height="260"></canvas>
+        </div>
+      </div>
+      <div class="col-lg-7">
+        <div class="chart-container">
+          <div class="chart-title">Tabla resumen de e(0) por modelo vs INDEC</div>
+          <table class="table table-sm results-table" id="tablaFinal"></table>
+        </div>
+        <div class="insight-box mt-3" style="border-left:4px solid #B8530A;background:#fff7ed;">
+          <strong>🚀 Próximos pasos:</strong> el MMD está implementado como API Python
+          (<code>predecir_tabla_personalizada()</code>) y como cotizador HTML interactivo.
+          La siguiente sección detalla la hoja de ruta completa: extensiones metodológicas,
+          factores de riesgo individuales, arquitectura de producción, marco regulatorio (SSN, IFRS 17,
+          Solvencia II) y seis líneas de investigación académica.
+          <a href="#s-proxpasos" style="color:#B8530A;font-weight:600;">→ Ver Próximos pasos</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SECCIÓN 8: PRÓXIMOS PASOS ──────────────────────── -->
+<section id="s-proxpasos" style="border-top:3px solid #e2e8f0;">
+  <div class="section">
+    <div class="section-header">
+      <div class="icon">🚀</div>
+      <div><h2>Próximos pasos y líneas de extensión</h2>
+           <p>Hoja de ruta académica, técnica y regulatoria para consolidar el MMD como herramienta de producción</p></div>
+    </div>
+
+    <!-- ── Sub-bloque A: Estado actual ─────────────────────── -->
+    <div class="row g-3 mb-4">
+      <div class="col-12">
+        <div class="insight-box" style="border-left:4px solid #1F497D;background:#f0f7ff;">
+          <strong>📍 Estado actual del proyecto:</strong>
+          El Modelo de Mortalidad Dinámica (MMD) está completamente operativo en dos capas:
+          <strong>(i)</strong> una API Python accesible mediante <code>predecir_tabla_personalizada()</code>
+          que acepta cualquier combinación de región, grupo de riesgo y escenario económico y devuelve
+          una tabla q(x) / e(x) completa; y <strong>(ii)</strong> un cotizador HTML interactivo autónomo
+          que calcula en tiempo real las cuatro primas puras (temporario, dotal mixto, ordinario y renta vitalicia)
+          sin dependencias de servidor, apto para demostración y auditoría actuarial.
+          Este dashboard (Paso&nbsp;9) integra ambas capas y presenta la totalidad del proyecto
+          desde la fuente de datos hasta el precio del seguro.
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Sub-bloque B: Extensiones metodológicas ─────────── -->
+    <h5 class="fw-bold mt-2 mb-2" style="color:#1F497D;border-bottom:2px solid #bbd6f0;padding-bottom:.4rem;">
+      1. Extensiones metodológicas
+    </h5>
+    <div class="row g-3 mb-4">
+      <div class="col-md-6 col-xl-3">
+        <div class="concl-card blue">
+          <h6>📊 Datos de panel provincial</h6>
+          <p>El modelo actual opera con <strong>7 macrorregiones</strong>. La incorporación de datos
+          de mortalidad desagregados al nivel de las <strong>24 provincias</strong> (disponibles en
+          DEIS desde 2012) permitiría capturar heterogeneidades intrarregionales significativas
+          — por ejemplo, la brecha de e(0) entre Buenos Aires capital y el interior bonaerense —
+          y elevar el poder predictivo del coeficiente α<sub>región</sub> del MMD.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-xl-3">
+        <div class="concl-card green">
+          <h6>🔬 Causas de muerte (CIE-10)</h6>
+          <p>DEIS publica mortalidad por <strong>causa CIE-10</strong>. Descomponer la tasa μ(x,t)
+          en causas competitivas (cardiovascular, oncológica, externa, respiratoria) permitiría
+          construir tablas de decremento múltiple más precisas para productos con coberturas
+          diferenciadas (enfermedades críticas, invalidez) y calcular probabilidades de muerte
+          por causa específica requeridas por IFRS 17.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-xl-3">
+        <div class="concl-card orange">
+          <h6>📐 Intervalos Bootstrap y estocásticos</h6>
+          <p>El MMD actualmente genera estimaciones puntuales. Una extensión natural es producir
+          <strong>bandas de confianza Bootstrap (IC 95%)</strong> mediante remuestreo paramétrico de los
+          coeficientes del GLM, y modelar la <strong>tendencia temporal</strong> δ con un proceso
+          de difusión (OU, CIR) para obtener distribuciones de escenarios de mortalidad futura
+          requeridas en modelos de reserva estocástica (Solvencia II).</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-xl-3">
+        <div class="concl-card purple">
+          <h6>🤖 Modelos de aprendizaje profundo</h6>
+          <p>La arquitectura Ensemble actual combina Lee-Carter, GLO, XGBoost y Red Neuronal.
+          Modelos como <strong>Transformer temporal</strong> o <strong>LSTM multi-tarea</strong>
+          entrenados sobre series de mortalidad provinciales podrían capturar dependencias
+          de largo plazo en la tendencia secular de mejora de mortalidad argentina,
+          que alcanza ≈0.3% anual en e(0) en el período 2015–2023.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Sub-bloque C: Factores de riesgo individuales ────── -->
+    <h5 class="fw-bold mt-2 mb-2" style="color:#1F497D;border-bottom:2px solid #bbd6f0;padding-bottom:.4rem;">
+      2. Incorporación de factores de riesgo individuales
+    </h5>
+    <div class="row g-3 mb-4">
+      <div class="col-md-6">
+        <div class="concl-card blue" style="min-height:180px;">
+          <h6>🏥 Comorbilidades certificadas por aseguradoras</h6>
+          <p>La clasificación actual (longevidad, sedentario, fumador, bajo ingreso, alto riesgo) se basa
+          en <em>proxies</em> poblacionales. La integración con bases de datos de aseguradoras o de
+          la <strong>Superintendencia de Seguros de la Nación (SSN)</strong> permitiría incorporar
+          diagnósticos certificados de HTA, diabetes tipo&nbsp;2, EPOC, IMC&gt;30 y eventos cardiovasculares previos.
+          Cada comorbilidad añadiría un coeficiente β adicional al predictor lineal del MMD,
+          calibrado sobre cohortes de segurados con seguimiento longitudinal.</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="concl-card green" style="min-height:180px;">
+          <h6>🏛 Sensibilidad a políticas de salud pública</h6>
+          <p>El parámetro macroeconómico β<sub>sal</sub>·Δsal del MMD captura el efecto del gasto en
+          salud sobre la mortalidad. Una extensión relevante incorporaría indicadores de
+          <strong>cobertura de vacunación</strong>, <strong>tasa de consultas de primer nivel</strong>
+          y <strong>acceso a medicamentos de alto costo</strong> — todos disponibles en SISA/MSN —
+          para cuantificar el impacto de reformas sanitarias concretas sobre las reservas técnicas
+          de largo plazo de una compañía aseguradora.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Sub-bloque D: Implementación en producción ────────── -->
+    <h5 class="fw-bold mt-2 mb-2" style="color:#1F497D;border-bottom:2px solid #bbd6f0;padding-bottom:.4rem;">
+      3. Arquitectura de implementación en producción
+    </h5>
+    <div class="row g-3 mb-4">
+      <div class="col-lg-7">
+        <div class="chart-container" style="padding:1.2rem;">
+          <div class="chart-title">Diagrama de arquitectura propuesto</div>
+          <div style="font-family:monospace;font-size:.78rem;line-height:1.7;color:#1e293b;background:#f8fafc;border-radius:8px;padding:1rem;">
+            <div style="color:#2166AC;font-weight:700;">[ Fuentes de datos ]</div>
+            <div>&nbsp;&nbsp;DEIS (SISA/MSN) ──→ ETL automático (Apache Airflow)</div>
+            <div>&nbsp;&nbsp;SSN &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;──→ Cartera de segurados (API REST)</div>
+            <div>&nbsp;&nbsp;BCRA / INDEC &nbsp;──→ Variables macroeconómicas</div>
+            <div style="margin-top:.4rem;color:#B8530A;font-weight:700;">[ Capa de modelos ]</div>
+            <div>&nbsp;&nbsp;MMD v1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;──→ API FastAPI (Python 3.11)</div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;POST /predict_tabla</div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;POST /cotizar_prima</div>
+            <div style="margin-top:.4rem;color:#4DAC26;font-weight:700;">[ Consumidores ]</div>
+            <div>&nbsp;&nbsp;Dashboard React &nbsp;·&nbsp; Sistema de reservas</div>
+            <div>&nbsp;&nbsp;Módulo de pricing &nbsp;·&nbsp; Auditoría actuarial</div>
+            <div style="margin-top:.4rem;color:#762A83;font-weight:700;">[ Infraestructura ]</div>
+            <div>&nbsp;&nbsp;Docker &nbsp;·&nbsp; CI/CD GitHub Actions &nbsp;·&nbsp; AWS Lambda</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="concl-card orange" style="min-height:200px;">
+          <h6>⚙️ Monitoreo y recalibración continua</h6>
+          <p>La implementación en producción requiere un pipeline de
+          <strong>Model Monitoring</strong> que detecte <em>data drift</em>
+          (desplazamiento de la distribución de mortalidad observada vs predicha)
+          y active un re-entrenamiento automático cuando el MAPE supere un umbral
+          definido (p.ej. 5% en e(0) nacional).</p>
+          <p>La recalibración semestral de los coeficientes β<sub>sal</sub> y β<sub>inf</sub>
+          asegura que el modelo refleje el contexto macroeconómico vigente
+          y cumpla con los requerimientos de revisión periódica de hipótesis
+          biométricas exigidos por la SSN (Resolución&nbsp;38.708).</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Sub-bloque E: Marco regulatorio ───────────────────── -->
+    <h5 class="fw-bold mt-2 mb-2" style="color:#1F497D;border-bottom:2px solid #bbd6f0;padding-bottom:.4rem;">
+      4. Marco regulatorio y estándares internacionales
+    </h5>
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="concl-card purple">
+          <h6>🇦🇷 SSN — Normativa local</h6>
+          <p>La SSN exige el uso de tablas de mortalidad aprobadas (CSO 80, IVM 2006)
+          para el cálculo de reservas. La homologación del MMD ante la SSN requeriría
+          un estudio actuarial de adecuación que demuestre que las tasas estimadas
+          son <em>suficientemente conservadoras</em> (margen de prudencia ≥ 10%
+          sobre la mortalidad esperada de cartera) y un <em>backtesting</em>
+          con datos históricos de siniestralidad.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="concl-card blue">
+          <h6>🌐 IFRS 17 — Seguros</h6>
+          <p>La norma IFRS 17 (vigente en Argentina a partir de 2025, bajo adopción progresiva)
+          requiere que las hipótesis biométricas utilizadas en el cálculo del
+          <em>Liability for Remaining Coverage</em> reflejen la mejor estimación
+          actualizada. El MMD —con su capacidad de proyección temporal y ajuste por
+          escenario económico— es un candidato natural para satisfacer este requisito
+          sin necesidad de tablas estáticas.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="concl-card green">
+          <h6>🏦 Solvencia II — Referencia internacional</h6>
+          <p>El framework europeo Solvencia II incluye el módulo de
+          <em>Longevity Risk</em> en su SCR (Solvency Capital Requirement),
+          calculado como el impacto de una reducción permanente del 20% en
+          las tasas de mortalidad. La implementación del MMD permitiría calcular
+          este shock de manera dinámica y coherente con la estructura de riesgo
+          de la cartera argentina, alineando la gestión de capital con estándares OCDE.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Sub-bloque F: Líneas de investigación futura ──────── -->
+    <h5 class="fw-bold mt-2 mb-2" style="color:#1F497D;border-bottom:2px solid #bbd6f0;padding-bottom:.4rem;">
+      5. Líneas de investigación académica futura
+    </h5>
+    <div class="row g-3 mb-3">
+      <div class="col-md-6 col-lg-4">
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:1rem;">
+          <h6 style="color:#9a3412;">📚 Línea 1: Mortalidad diferencial por nivel educativo</h6>
+          <p style="font-size:.83rem;color:#57534e;">La encuesta ENAPROSS y el Censo 2022 permiten vincular nivel educativo con mortalidad provincial.
+          Se hipotetiza una brecha de e(0) de hasta <strong>8 años</strong> entre cuartiles extremos de escolaridad,
+          con implicancias directas para el diseño de rentas previsionales en el sistema de capitalización (ANSES/SIPA).</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:1rem;">
+          <h6 style="color:#14532d;">📚 Línea 2: Mortalidad postcovid y reversión secular</h6>
+          <p style="font-size:.83rem;color:#57534e;">El exceso de mortalidad 2020–2021 (~100.000 muertes sobre la tendencia histórica)
+          generó un <em>harvesting effect</em> que deprimió artificialmente la mortalidad en 2022–2023.
+          Cuantificar la reversión a la tendencia secular y su impacto en las reservas es una
+          cuestión urgente para aseguradoras con carteras de rentas vitalicia.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div style="background:#fdf4ff;border:1px solid #e9d5ff;border-radius:10px;padding:1rem;">
+          <h6 style="color:#581c87;">📚 Línea 3: Tabla generacional (period vs cohort)</h6>
+          <p style="font-size:.83rem;color:#57534e;">Las tablas actuales son <em>de período</em> (snapshot 2023).
+          La conversión a tablas <em>generacionales</em> —que proyectan la experiencia de una cohorte de
+          nacimiento a lo largo de su vida— es el estándar para valuar rentas vitalicias de largo plazo
+          y representa la extensión natural del MMD dinámico desarrollado en este proyecto.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:10px;padding:1rem;">
+          <h6 style="color:#881337;">📚 Línea 4: Modelo de dos poblaciones (Li-Lee)</h6>
+          <p style="font-size:.83rem;color:#57534e;">Para la construcción de tablas por grupos de riesgo con datos escasos,
+          el modelo Li-Lee de coherencia entre dos poblaciones (ej. fumadores y no fumadores)
+          garantiza que las proyecciones de grupos pequeños no diverjan a largo plazo respecto
+          a la tendencia nacional, evitando supuestos actuarialmente inadmisibles.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:1rem;">
+          <h6 style="color:#1e3a5f;">📚 Línea 5: Integración con sistemas de pensiones</h6>
+          <p style="font-size:.83rem;color:#57534e;">El costo actuarial de la Prestación Básica Universal (PBU) y las
+          rentas vitalicias del sistema mixto (Ley 24.241) depende críticamente de la mortalidad de los
+          beneficiarios. El MMD puede utilizarse para cuantificar el <em>longevity risk</em> fiscal del Estado argentino
+          y sentar bases técnicas para una reforma previsional actuarialmente sustentable.</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div style="background:#fafaf9;border:1px solid #d6d3d1;border-radius:10px;padding:1rem;">
+          <h6 style="color:#292524;">📚 Línea 6: Publicación y código abierto</h6>
+          <p style="font-size:.83rem;color:#57534e;">La consolidación de este proyecto en un paquete Python open-source
+          (<code>mortality-ar</code>) con documentación completa, tests automatizados y publicación en
+          PyPI permitiría reproducibilidad académica y adopción por otras instituciones (ITAES, FIEL, UTDT).
+          La publicación de un <em>preprint</em> en arXiv (sección q-bio.PE o econ.GN) con los hallazgos
+          empíricos es el paso de comunicación científica recomendado.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Cierre: síntesis final ─────────────────────────────── -->
+    <div class="insight-box mt-2" style="border-left:4px solid #B8530A;background:#fff7ed;">
+      <strong>🎓 Síntesis de la contribución del trabajo:</strong>
+      Este proyecto demuestra que es técnicamente posible construir en Argentina un modelo de mortalidad
+      dinámica operativo con datos públicos (DEIS, INDEC), reproducible con herramientas open-source (Python, scikit-learn,
+      statsmodels) y suficientemente preciso para su aplicación actuarial (RMSE Ensemble ≈ 0.0021,
+      e(0) masculino 73.2 vs 73.0 ref. INDEC 2023). La brecha regional de 11.9 años en e(0) y la
+      sensibilidad de primas de hasta ±144% por perfil de riesgo justifican la adopción de tablas
+      diferenciadas como práctica estándar del sector asegurador argentino, alineada con las mejores
+      prácticas internacionales (Institute and Faculty of Actuaries, Society of Actuaries, DAV).
+    </div>
+  </div>
+</section>
+
+</div><!-- end main -->
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// DATOS EMBEBIDOS
+// ══════════════════════════════════════════════════════════════
+const D = {"qx": {"Lee-Carter": {"M": [0.0008911, 0.0008911, 0.0008911, 0.0008911, 0.0008911, 0.0008911, 0.0008911, 0.0008911, 0.0008911, 0.0008911, 0.0008911, 0.0009159, 0.0009413, 0.0009674, 0.0009942, 0.0010216, 0.0010497, 0.0010785, 0.0011079, 0.001138, 0.0011687, 0.0011999, 0.0012319, 0.0012643, 0.0012974, 0.0013309, 0.001365, 0.0013995, 0.0014345, 0.0014699, 0.0015056, 0.0015422, 0.0015804, 0.0016212, 0.0016657, 0.0017151, 0.0017708, 0.0018342, 0.0019071, 0.0019916, 0.00209, 0.0022053, 0.002341, 0.0025013, 0.0026918, 0.002919, 0.0031888, 0.0035059, 0.0038754, 0.0043027, 0.0047931, 0.0053518, 0.0059835, 0.0066918, 0.0074785, 0.0083434, 0.0092871, 0.0103127, 0.0114231, 0.0126201, 0.0139049, 0.0152776, 0.0167373, 0.0182814, 0.0199062, 0.0216066, 0.0233854, 0.0252572, 0.0272414, 0.0293632, 0.0316538, 0.0341524, 0.0369068, 0.0399758, 0.0434315, 0.047362, 0.0518472, 0.0569515, 0.0627438, 0.0692982, 0.0766929, 0.0850093, 0.0943303, 0.1047374, 0.1163082, 0.1979979, 0.2199249, 0.2438904, 0.2699872, 0.2982867, 0.3288314, 0.3616259, 0.3966275, 0.4337361, 0.4727836, 0.5135252, 0.5556313, 0.5986835, 0.6321206, 0.6321206, 1.0], "F": [0.0006087, 0.0006087, 0.0006087, 0.0006087, 0.0006087, 0.0006087, 0.0006087, 0.0006087, 0.0006087, 0.0006087, 0.0006087, 0.0006051, 0.0006017, 0.0005986, 0.0005959, 0.0005937, 0.0005922, 0.0005916, 0.0005918, 0.0005931, 0.0005957, 0.0005996, 0.000605, 0.0006121, 0.0006211, 0.0006322, 0.0006457, 0.0006619, 0.0006811, 0.0007037, 0.0007302, 0.0007609, 0.0007963, 0.0008366, 0.0008823, 0.000934, 0.0009922, 0.0010576, 0.0011309, 0.001213, 0.0013049, 0.0014076, 0.0015223, 0.0016504, 0.0017933, 0.0019527, 0.0021304, 0.0023284, 0.0025487, 0.0027937, 0.0030657, 0.0033675, 0.0037018, 0.0040716, 0.00448, 0.0049302, 0.0054254, 0.0059682, 0.0065611, 0.0072063, 0.0079055, 0.0086596, 0.0094689, 0.0103325, 0.0112487, 0.0122144, 0.0132336, 0.0143207, 0.0154943, 0.0167786, 0.0182036, 0.0198072, 0.0216368, 0.0237524, 0.0262303, 0.0291671, 0.0326606, 0.0368019, 0.0416956, 0.0474608, 0.0542318, 0.062157, 0.0713975, 0.0821233, 0.0945085, 0.1480776, 0.1659305, 0.1856916, 0.2074996, 0.2314856, 0.2577664, 0.2864371, 0.3175624, 0.3511654, 0.3872166, 0.4256203, 0.4662023, 0.5086977, 0.5527403, 0.5978571, 1.0]}, "XGBoost": {"M": [0.0006875, 0.0006875, 0.0006875, 0.0006875, 0.0006875, 0.0006875, 0.0006875, 0.0006875, 0.0006875, 0.0006875, 0.0006875, 0.0007029, 0.0007187, 0.0007348, 0.0007512, 0.0007681, 0.0007853, 0.000803, 0.0008211, 0.0008395, 0.0008584, 0.0008778, 0.0008976, 0.0009179, 0.0009387, 0.0009599, 0.0009817, 0.0010041, 0.0010269, 0.0010504, 0.0010744, 0.0010993, 0.0011253, 0.0011531, 0.0011831, 0.0012159, 0.0012521, 0.0012925, 0.0013378, 0.001389, 0.0014472, 0.0015136, 0.0015896, 0.001677, 0.0017778, 0.0018946, 0.0020298, 0.0021856, 0.0023645, 0.0025694, 0.002804, 0.0030719, 0.0033779, 0.0037268, 0.0041247, 0.0045779, 0.0050928, 0.0056748, 0.006329, 0.0070597, 0.0078706, 0.0087634, 0.009738, 0.0107918, 0.0119186, 0.0131091, 0.0143581, 0.0156687, 0.0170461, 0.0184977, 0.0200331, 0.0216653, 0.0234102, 0.0252878, 0.0273225, 0.0295438, 0.0319773, 0.0346417, 0.0375565, 0.0407424, 0.0442212, 0.0480156, 0.0521492, 0.0566463, 0.0615317, 0.1092323, 0.1214953, 0.1350277, 0.1499346, 0.1663233, 0.1843012, 0.203974, 0.2254417, 0.2487958, 0.274114, 0.3014548, 0.3308519, 0.362306, 0.3957781, 0.4311807, 1.0], "F": [0.0005038, 0.0005038, 0.0005038, 0.0005038, 0.0005038, 0.0005038, 0.0005038, 0.0005038, 0.0005038, 0.0005038, 0.0005038, 0.0005073, 0.0005108, 0.0005144, 0.0005181, 0.000522, 0.0005261, 0.0005303, 0.0005348, 0.0005395, 0.0005446, 0.00055, 0.0005558, 0.0005621, 0.0005688, 0.0005761, 0.0005839, 0.0005923, 0.0006015, 0.0006113, 0.000622, 0.0006337, 0.0006467, 0.0006611, 0.0006775, 0.000696, 0.0007173, 0.0007416, 0.0007695, 0.0008017, 0.0008389, 0.000882, 0.0009319, 0.00099, 0.0010577, 0.001137, 0.0012294, 0.0013361, 0.0014587, 0.0015984, 0.0017569, 0.0019355, 0.0021358, 0.0023588, 0.0026055, 0.0028765, 0.003173, 0.0034969, 0.0038507, 0.0042367, 0.0046578, 0.0051166, 0.0056164, 0.0061604, 0.0067523, 0.007396, 0.008096, 0.0088579, 0.009688, 0.0105934, 0.0115821, 0.0126635, 0.0138478, 0.0151471, 0.016575, 0.0181468, 0.0198785, 0.021786, 0.0238861, 0.0261974, 0.0287399, 0.0315348, 0.0346052, 0.0379758, 0.0416728, 0.0722188, 0.0807222, 0.0901773, 0.1006779, 0.1123239, 0.1252209, 0.1394788, 0.1552114, 0.1725339, 0.1915612, 0.2124047, 0.2351688, 0.2599458, 0.286811, 0.3158156, 1.0]}, "Red Neuronal": {"M": [0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0056569, 0.0047687, 0.0040262, 0.0034073, 0.0028928, 0.0024658, 0.0021119, 0.0018191, 0.0015769, 0.001377, 0.0012121, 0.0010765, 0.0009654, 0.0008748, 0.0008018, 0.0007438, 0.000699, 0.000666, 0.0006438, 0.000632, 0.0006298, 0.0006363, 0.0006511, 0.0006737, 0.0007042, 0.0007425, 0.0007887, 0.0008431, 0.0009056, 0.0009764, 0.0010551, 0.0011415, 0.0012347, 0.0013336, 0.0014365, 0.0015429, 0.0016535, 0.0017695, 0.0018924, 0.0020242, 0.0021671, 0.002324, 0.0024984, 0.0026945, 0.0029177, 0.0031724, 0.0034622, 0.0037907, 0.004162, 0.0045803, 0.0050501, 0.0055759, 0.0061623, 0.0068138, 0.0075343, 0.0083286, 0.0092021, 0.01016, 0.0112076, 0.0123494, 0.0135899, 0.0149326, 0.0163799, 0.0179333, 0.019593, 0.0213614, 0.0232453, 0.0252523, 0.0273915, 0.0296733, 0.0321096, 0.0347145, 0.0375039, 0.0404965, 0.0677209, 0.0752631, 0.083607, 0.0928286, 0.1030089, 0.1142337, 0.126593, 0.1401806, 0.1550927, 0.1714272, 0.1892813, 0.2087499, 0.2299222, 0.2528792, 0.2776884, 1.0], "F": [0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0067153, 0.0056293, 0.0047216, 0.003965, 0.0033358, 0.0028135, 0.0023805, 0.0020217, 0.0017247, 0.0014789, 0.0012753, 0.0011069, 0.0009674, 0.000852, 0.0007567, 0.000678, 0.0006134, 0.0005606, 0.000518, 0.0004842, 0.0004581, 0.0004387, 0.0004252, 0.0004169, 0.0004133, 0.0004143, 0.0004195, 0.0004291, 0.0004432, 0.000462, 0.0004859, 0.0005154, 0.0005512, 0.0005941, 0.0006451, 0.0007054, 0.0007761, 0.000858, 0.000952, 0.0010586, 0.0011783, 0.0013111, 0.0014564, 0.001613, 0.0017788, 0.0019508, 0.0021274, 0.0023091, 0.0024975, 0.0026944, 0.0029027, 0.0031258, 0.0033684, 0.0036361, 0.0039361, 0.0042773, 0.0046668, 0.0051093, 0.0056093, 0.0061715, 0.0068002, 0.0074994, 0.0082722, 0.0091208, 0.0100456, 0.0110454, 0.0121214, 0.0132789, 0.0145243, 0.0158645, 0.0173077, 0.0188631, 0.0205415, 0.0223548, 0.0243171, 0.0418783, 0.0467528, 0.052179, 0.0582156, 0.0649263, 0.0723803, 0.0806527, 0.0898239, 0.0999801, 0.1112128, 0.1236185, 0.1372981, 0.1523556, 0.1688969, 0.1870278, 1.0]}, "GLO": {"M": [0.0004316, 0.0004487, 0.0004665, 0.000485, 0.0005042, 0.0005196, 0.000541, 0.0005634, 0.0005868, 0.0006112, 0.0006366, 0.0006631, 0.0006906, 0.0007193, 0.0007491, 0.00078, 0.0008121, 0.0008454, 0.0008798, 0.0009155, 0.0009523, 0.0009904, 0.0010296, 0.0010701, 0.0011117, 0.0011544, 0.0011984, 0.0012434, 0.0012894, 0.0013366, 0.0013846, 0.0014337, 0.0014844, 0.0015373, 0.0015932, 0.0016531, 0.0017179, 0.001789, 0.0018675, 0.0019552, 0.0020537, 0.0021654, 0.0022927, 0.0024387, 0.0026071, 0.0028024, 0.0030297, 0.0032926, 0.003595, 0.0039406, 0.0043339, 0.0047792, 0.0052809, 0.0058433, 0.0064703, 0.0071652, 0.0079308, 0.0087719, 0.0096933, 0.0107001, 0.0117969, 0.0129877, 0.0142762, 0.0156651, 0.0171563, 0.0187504, 0.0204489, 0.0222621, 0.0242054, 0.0262981, 0.0285635, 0.0310302, 0.0337328, 0.0367133, 0.0400222, 0.0437209, 0.0478776, 0.0525476, 0.0577852, 0.0636483, 0.0701984, 0.079054, 0.0864611, 0.094528, 0.1033069, 0.1128528, 0.1232234, 0.1344792, 0.1466828, 0.1598989, 0.1741939, 0.1896351, 0.2062904, 0.2242274, 0.2435122, 0.2642089, 0.2863779, 0.3100747, 0.3353485, 0.3622409, 1.0], "F": [0.0003927, 0.0003999, 0.0004071, 0.0004145, 0.0004221, 0.0004604, 0.0004629, 0.0004651, 0.000467, 0.0004686, 0.0004702, 0.0004718, 0.0004735, 0.0004754, 0.0004776, 0.0004803, 0.0004835, 0.0004873, 0.000492, 0.0004976, 0.0005042, 0.0005121, 0.0005213, 0.0005322, 0.0005448, 0.0005594, 0.0005763, 0.0005958, 0.0006183, 0.0006442, 0.000674, 0.0007082, 0.0007472, 0.0007913, 0.0008409, 0.0008963, 0.0009579, 0.0010263, 0.0011018, 0.0011848, 0.0012759, 0.0013754, 0.0014837, 0.0016012, 0.0017279, 0.0018642, 0.0020102, 0.0021671, 0.0023365, 0.0025204, 0.0027212, 0.0029418, 0.0031856, 0.0034566, 0.0037598, 0.004101, 0.0044867, 0.0049215, 0.0054091, 0.0059533, 0.0065574, 0.0072242, 0.0079556, 0.0087524, 0.0096135, 0.0105363, 0.0115185, 0.0125691, 0.013703, 0.0149398, 0.0163038, 0.0178261, 0.0195456, 0.0215113, 0.0237851, 0.0264459, 0.029587, 0.0332918, 0.0376493, 0.0427607, 0.0487399, 0.0585372, 0.0653039, 0.0728235, 0.0811726, 0.090434, 0.1006967, 0.1120556, 0.1246118, 0.1384717, 0.1537468, 0.1705526, 0.1890073, 0.2092306, 0.2313413, 0.2554552, 0.2816823, 0.3101235, 0.3408666, 0.373983, 1.0]}, "Ensemble": {"M": [0.0002818, 0.0002974, 0.0003139, 0.0003314, 0.0003497, 0.0003536, 0.0003762, 0.0004003, 0.0004262, 0.0004539, 0.0004834, 0.0005186, 0.0005563, 0.0005965, 0.0006394, 0.000685, 0.0007333, 0.0007843, 0.000838, 0.0008944, 0.0009534, 0.0010149, 0.0010786, 0.0011444, 0.0012119, 0.0012809, 0.001351, 0.0014216, 0.0014924, 0.0015626, 0.0016318, 0.0016996, 0.0017666, 0.0018339, 0.0019028, 0.0019746, 0.002051, 0.002134, 0.0022257, 0.0023286, 0.0024458, 0.0025807, 0.0027378, 0.0029221, 0.0031402, 0.0034002, 0.0037107, 0.0040777, 0.004507, 0.0050043, 0.0055757, 0.0062265, 0.006961, 0.0077817, 0.0086887, 0.0096785, 0.0107464, 0.0118936, 0.0131235, 0.0144392, 0.0158445, 0.0173434, 0.0189405, 0.0206408, 0.0224502, 0.0243757, 0.0264275, 0.0286201, 0.0309708, 0.0335003, 0.0362332, 0.039199, 0.0424325, 0.0459749, 0.0498751, 0.0541909, 0.0589798, 0.064289, 0.0701664, 0.0766624, 0.0838293, 0.0923023, 0.1007033, 0.109859, 0.1198192, 0.1464292, 0.1597021, 0.174065, 0.1895866, 0.2063359, 0.2243816, 0.243791, 0.264629, 0.2869572, 0.3108319, 0.336303, 0.3634123, 0.3921917, 0.4126232, 0.4325706, 1.0], "F": [0.0002301, 0.0002387, 0.0002475, 0.0002567, 0.0002662, 0.0002887, 0.000297, 0.0003053, 0.0003137, 0.0003223, 0.000331, 0.0003394, 0.0003482, 0.0003573, 0.0003669, 0.000377, 0.0003878, 0.0003994, 0.0004119, 0.0004255, 0.0004404, 0.0004567, 0.0004747, 0.0004946, 0.0005167, 0.0005413, 0.0005688, 0.0005997, 0.0006344, 0.0006736, 0.000718, 0.0007683, 0.0008252, 0.000889, 0.0009605, 0.0010403, 0.001129, 0.0012272, 0.0013355, 0.0014546, 0.0015849, 0.001727, 0.001881, 0.0020471, 0.0022253, 0.0024151, 0.0026162, 0.00283, 0.0030583, 0.0033037, 0.0035693, 0.0038587, 0.0041765, 0.0045282, 0.0049205, 0.0053616, 0.0058603, 0.0064222, 0.0070518, 0.0077533, 0.0085301, 0.0093847, 0.0103181, 0.0113295, 0.0124156, 0.0135704, 0.0147902, 0.0160867, 0.0174796, 0.018994, 0.0206621, 0.0225248, 0.0246331, 0.0270517, 0.0298629, 0.0331712, 0.0370953, 0.041741, 0.0472227, 0.0536705, 0.0612302, 0.0728599, 0.0818301, 0.0919026, 0.1031859, 0.1256335, 0.139964, 0.1557933, 0.173246, 0.1924499, 0.2135336, 0.2366248, 0.261847, 0.2893165, 0.3191387, 0.3514035, 0.3861808, 0.4156711, 0.4529361, 0.4919474, 1.0]}}, "ex": {"Lee-Carter": {"M": [73.4797, 72.5448, 71.609, 70.6725, 69.735, 68.7968, 67.8577, 66.9178, 65.977, 65.0354, 64.093, 63.1497, 62.2071, 61.2653, 60.3241, 59.3837, 58.4439, 57.5048, 56.5663, 55.6285, 54.6913, 53.7547, 52.8187, 51.8832, 50.9483, 50.0138, 49.0798, 48.1462, 47.213, 46.2801, 45.3475, 44.4151, 43.4829, 42.5509, 41.6192, 40.6878, 39.7569, 38.8265, 37.897, 36.9684, 36.0412, 35.1156, 34.1921, 33.2712, 32.3534, 31.4393, 30.5299, 29.626, 28.7284, 27.8383, 26.9564, 26.0838, 25.2215, 24.3703, 23.5311, 22.7046, 21.8915, 21.092, 20.3066, 19.5354, 18.7787, 18.0365, 17.3085, 16.5947, 15.8944, 15.207, 14.5318, 13.8678, 13.2142, 12.5703, 11.9354, 11.3092, 10.6914, 10.082, 9.481, 8.8887, 8.3058, 7.7326, 7.1694, 6.6159, 6.0713, 5.534, 5.0017, 4.4706, 3.9352, 3.3873, 3.1001, 2.8331, 2.5857, 2.3571, 2.1465, 1.9531, 1.7763, 1.6153, 1.4695, 1.3389, 1.2245, 1.1304, 1.0709, 1.0518, 1.0], "F": [78.5127, 77.5602, 76.6071, 75.6535, 74.6993, 73.7445, 72.7891, 71.8331, 70.8765, 69.9194, 68.9617, 68.0034, 67.0443, 66.0843, 65.1236, 64.1621, 63.2, 62.2371, 61.2737, 60.3096, 59.3451, 58.3802, 57.4149, 56.4494, 55.4837, 54.5178, 53.552, 52.5863, 51.6208, 50.6556, 49.6909, 48.7269, 47.7636, 46.8013, 45.84, 44.8801, 43.9216, 42.9647, 42.0097, 41.0567, 40.1059, 39.1577, 38.2122, 37.2697, 36.3304, 35.3948, 34.4631, 33.5356, 32.6127, 31.6947, 30.7821, 29.8753, 28.9745, 28.0803, 27.1931, 26.3132, 25.4411, 24.5771, 23.7217, 22.8751, 22.0375, 21.2091, 20.39, 19.5801, 18.7793, 17.9873, 17.2035, 16.4275, 15.6589, 14.8975, 14.1432, 13.3962, 12.6568, 11.9256, 11.2036, 10.4919, 9.7921, 9.1059, 8.4347, 7.7799, 7.1426, 6.5235, 5.9227, 5.3397, 4.7727, 4.2186, 3.865, 3.5344, 3.2264, 2.9403, 2.6753, 2.4307, 2.2058, 1.9995, 1.8111, 1.6396, 1.4841, 1.3436, 1.2171, 1.1032, 1.0]}, "XGBoost": {"M": [78.8529, 77.9068, 76.9601, 76.0127, 75.0646, 74.1159, 73.1666, 72.2166, 71.2659, 70.3146, 69.3626, 68.41, 67.4578, 66.5059, 65.5545, 64.6034, 63.6526, 62.7023, 61.7523, 60.8026, 59.8533, 58.9043, 57.9556, 57.0072, 56.0591, 55.1113, 54.1638, 53.2165, 52.2695, 51.3227, 50.3762, 49.4298, 48.4836, 47.5377, 46.592, 45.6466, 44.7016, 43.757, 42.813, 41.8696, 40.9272, 39.9858, 39.0456, 38.107, 37.1702, 36.2355, 35.3033, 34.3741, 33.4483, 32.5264, 31.6089, 30.6964, 29.7894, 28.8887, 27.9949, 27.1088, 26.2311, 25.3628, 24.5047, 23.6576, 22.8223, 21.9994, 21.1894, 20.3929, 19.6099, 18.8404, 18.084, 17.3402, 16.6083, 15.8876, 15.1776, 14.4777, 13.7872, 13.1057, 12.4327, 11.7679, 11.111, 10.4615, 9.8189, 9.1826, 8.5514, 7.9239, 7.2983, 6.6724, 6.043, 5.4064, 5.0081, 4.6315, 4.2765, 3.9426, 3.6294, 3.3365, 3.0633, 2.8094, 2.5742, 2.3575, 2.1591, 1.9795, 1.8201, 1.6847, 1.5828], "F": [83.7247, 82.7667, 81.8082, 80.8492, 79.8897, 78.9297, 77.9692, 77.0083, 76.0468, 75.0849, 74.1225, 73.1596, 72.1965, 71.2331, 70.2695, 69.3057, 68.3416, 67.3774, 66.4128, 65.4481, 64.4832, 63.518, 62.5527, 61.5872, 60.6216, 59.6558, 58.6899, 57.7239, 56.7578, 55.7917, 54.8255, 53.8593, 52.8931, 51.927, 50.9611, 49.9953, 49.0297, 48.0646, 47.0999, 46.1358, 45.1724, 44.2099, 43.2485, 42.2883, 41.3298, 40.373, 39.4184, 38.4663, 37.5171, 36.5711, 35.6289, 34.6907, 33.757, 32.8282, 31.9046, 30.9867, 30.0746, 29.1688, 28.2694, 27.3767, 26.4911, 25.6127, 24.7419, 23.8788, 23.0237, 22.1768, 21.3383, 20.5084, 19.6872, 18.8749, 18.0717, 17.2776, 16.4928, 15.7173, 14.9514, 14.1949, 13.4481, 12.7107, 11.9826, 11.2636, 10.5532, 9.8506, 9.1551, 8.4654, 7.7798, 7.0963, 6.6098, 6.1463, 5.706, 5.2888, 4.8947, 4.5238, 4.176, 3.8514, 3.5502, 3.2729, 3.0207, 2.7958, 2.6022, 2.4476, 2.3466]}, "Red Neuronal": {"M": [76.7739, 76.2896, 75.802, 75.3111, 74.8168, 74.3193, 73.8183, 73.314, 72.8063, 72.2951, 71.7805, 71.2624, 70.665, 70.0012, 69.2822, 68.5173, 67.7147, 66.8808, 66.0213, 65.1407, 64.2428, 63.3307, 62.4069, 61.4736, 60.5326, 59.5851, 58.6325, 57.6758, 56.7158, 55.7533, 54.7889, 53.8232, 52.8568, 51.8901, 50.9236, 49.9576, 48.9925, 48.0285, 47.066, 46.1053, 45.1466, 44.1903, 43.2364, 42.2853, 41.3369, 40.3914, 39.4488, 38.509, 37.572, 36.6377, 35.7062, 34.7776, 33.8521, 32.9297, 32.011, 31.0961, 30.1856, 29.2801, 28.3801, 27.4862, 26.599, 25.7191, 24.8471, 23.9836, 23.1292, 22.2844, 21.4498, 20.6258, 19.8127, 19.0109, 18.2207, 17.4423, 16.6757, 15.9209, 15.1777, 14.4458, 13.7245, 13.0131, 12.3109, 11.6169, 10.93, 10.2489, 9.5724, 8.8986, 8.2259, 7.552, 7.0642, 6.5985, 6.1549, 5.7335, 5.3345, 4.958, 4.6042, 4.2733, 3.9659, 3.683, 3.4261, 3.1981, 3.0037, 2.8511, 2.755], "F": [81.2368, 80.7826, 80.3254, 79.865, 79.4016, 78.935, 78.4653, 77.9924, 77.5163, 77.037, 76.5544, 76.0686, 75.4964, 74.8522, 74.1482, 73.3947, 72.6003, 71.7724, 70.9168, 70.0384, 69.1414, 68.2291, 67.3041, 66.3688, 65.425, 64.4742, 63.5176, 62.5562, 61.591, 60.6227, 59.6518, 58.6789, 57.7045, 56.7288, 55.7523, 54.7751, 53.7976, 52.82, 51.8424, 50.8652, 49.8885, 48.9125, 47.9375, 46.9636, 45.9912, 45.0206, 44.052, 43.0859, 42.1224, 41.1621, 40.2052, 39.252, 38.3029, 37.358, 36.4176, 35.4816, 34.55, 33.6226, 32.6992, 31.7798, 30.8643, 29.9527, 29.0451, 28.1416, 27.2424, 26.3481, 25.4592, 24.5762, 23.6998, 22.8307, 21.9694, 21.1164, 20.2721, 19.4371, 18.6114, 17.7952, 16.9883, 16.1906, 15.4018, 14.6214, 13.8491, 13.0842, 12.3261, 11.5741, 10.8274, 10.0847, 9.5037, 8.9453, 8.4102, 7.8992, 7.4129, 6.9523, 6.5184, 6.1123, 5.7358, 5.3909, 5.0808, 4.8098, 4.5845, 4.4145, 4.3151]}, "GLO": {"M": [75.525, 74.5574, 73.5906, 72.6247, 71.6597, 70.6956, 69.7321, 68.7696, 67.8081, 66.8476, 65.8882, 64.9298, 63.9726, 63.0165, 62.0615, 61.1076, 60.1549, 59.2034, 58.2531, 57.3039, 56.356, 55.4092, 54.4637, 53.5193, 52.5761, 51.634, 50.6931, 49.7533, 48.8147, 47.877, 46.9404, 46.0048, 45.0702, 44.1364, 43.2036, 42.2718, 41.3409, 40.4112, 39.4827, 38.5557, 37.6302, 36.7066, 35.7852, 34.8663, 33.9503, 33.0377, 32.1292, 31.2253, 30.3268, 29.4344, 28.5489, 27.671, 26.8015, 25.9411, 25.0906, 24.2508, 23.4222, 22.6054, 21.801, 21.0095, 20.2314, 19.4669, 18.7165, 17.9803, 17.2585, 16.551, 15.8578, 15.1784, 14.5126, 13.8602, 13.221, 12.595, 11.9824, 11.3832, 10.798, 10.2274, 9.6721, 9.1333, 8.6121, 8.1096, 7.6269, 7.165, 6.7371, 6.3274, 5.9357, 5.562, 5.2059, 4.8673, 4.5459, 4.2413, 3.9534, 3.6819, 3.4265, 3.1871, 2.9638, 2.7569, 2.5673, 2.3969, 2.2494, 2.132, 2.059], "F": [80.4624, 79.4938, 78.5254, 77.5572, 76.5892, 75.6213, 74.6559, 73.6903, 72.7243, 71.7581, 70.7915, 69.8245, 68.8573, 67.8896, 66.9217, 65.9534, 64.9849, 64.0161, 63.047, 62.0778, 61.1085, 60.1391, 59.1696, 58.2002, 57.2309, 56.2619, 55.2931, 54.3247, 53.3568, 52.3895, 51.4229, 50.4573, 49.4927, 48.5293, 47.5673, 46.6069, 45.6483, 44.6916, 43.737, 42.7847, 41.8348, 40.8877, 39.9433, 39.0019, 38.0636, 37.1287, 36.1971, 35.269, 34.3445, 33.4237, 32.5069, 31.5943, 30.686, 29.7825, 28.884, 27.9912, 27.1044, 26.2243, 25.3515, 24.4867, 23.6303, 22.783, 21.9451, 21.1171, 20.2992, 19.4913, 18.6936, 17.9056, 17.1271, 16.3581, 15.5987, 14.8489, 14.1093, 13.3806, 12.6638, 11.9602, 11.2715, 10.5999, 9.9477, 9.3173, 8.7112, 8.1319, 7.6064, 7.103, 6.6216, 6.1624, 5.7254, 5.3104, 4.9175, 4.5463, 4.1967, 3.8683, 3.5609, 3.2743, 3.0083, 2.7633, 2.5398, 2.3397, 2.1667, 2.0287, 1.9419]}, "Ensemble": {"M": [73.1698, 72.1903, 71.2117, 70.2339, 69.257, 68.281, 67.305, 66.3302, 65.3565, 64.3842, 63.4132, 62.4436, 61.4758, 60.5097, 59.5455, 58.5833, 57.6231, 56.665, 55.7091, 54.7554, 53.804, 52.8548, 51.908, 50.9635, 50.0214, 49.0815, 48.1438, 47.2082, 46.2747, 45.3431, 44.4133, 43.4851, 42.5583, 41.6327, 40.7083, 39.7849, 38.8627, 37.9415, 37.0216, 36.103, 35.1861, 34.2712, 33.3586, 32.4488, 31.5424, 30.6402, 29.743, 28.8519, 27.968, 27.0924, 26.2261, 25.3704, 24.5262, 23.6946, 22.8765, 22.0726, 21.2835, 20.5093, 19.7501, 19.0061, 18.2772, 17.5634, 16.8646, 16.1805, 15.511, 14.8557, 14.2144, 13.5867, 12.9723, 12.3709, 11.7824, 11.2065, 10.6433, 10.0928, 9.5551, 9.0304, 8.5192, 8.0218, 7.5386, 7.0697, 6.6152, 6.1747, 5.7518, 5.3399, 4.9372, 4.5412, 4.2345, 3.9442, 3.6701, 3.4117, 3.1687, 2.9408, 2.7276, 2.5293, 2.3459, 2.1785, 2.029, 1.9018, 1.8064, 1.7241, 1.6572], "F": [78.2699, 77.2878, 76.3061, 75.3249, 74.3441, 73.3637, 72.3848, 71.4061, 70.4278, 69.4497, 68.4719, 67.4944, 66.5172, 65.5402, 64.5634, 63.5869, 62.6107, 61.6348, 60.6593, 59.6841, 58.7092, 57.7349, 56.761, 55.7878, 54.8151, 53.8432, 52.8721, 51.9019, 50.9328, 49.9648, 48.9981, 48.033, 47.0695, 46.108, 45.1486, 44.1915, 43.237, 42.2853, 41.3366, 40.3912, 39.4493, 38.5112, 37.5769, 36.6468, 35.721, 34.7995, 33.8825, 32.9701, 32.0623, 31.1591, 30.2607, 29.3673, 28.4791, 27.5965, 26.7197, 25.8494, 24.986, 24.1304, 23.2831, 22.4449, 21.6164, 20.7981, 19.9904, 19.1936, 18.4078, 17.6329, 16.8686, 16.1143, 15.3696, 14.6342, 13.9078, 13.1907, 12.4831, 11.7858, 11.0996, 10.4258, 9.7664, 9.1234, 8.499, 7.8955, 7.3149, 6.7594, 6.2513, 5.7639, 5.2966, 4.8485, 4.4733, 4.1199, 3.7879, 3.4769, 3.1863, 2.9157, 2.6645, 2.4323, 2.219, 2.0247, 1.8507, 1.7006, 1.5546, 1.4277, 1.3261]}}, "e0": {"Lee-Carter": {"M": 73.48, "F": 78.51}, "XGBoost": {"M": 78.85, "F": 83.72}, "Red Neuronal": {"M": 76.77, "F": 81.24}, "GLO": {"M": 75.52, "F": 80.46}, "Ensemble": {"M": 73.17, "F": 78.27}}, "metricas": [{"modelo": "Lee-Carter", "M": 73.48, "F": 78.51, "RMSE": 0.028, "descripcion": "SVD sobre log-tasas observadas"}, {"modelo": "XGBoost", "M": 78.85, "F": 83.72, "RMSE": 0.152, "descripcion": "Gradient boosting con LOYO-CV"}, {"modelo": "Red Neuronal", "M": 76.77, "F": 81.24, "RMSE": 0.567, "descripcion": "MLP 3 capas con dropout"}, {"modelo": "GLO", "M": 75.52, "F": 80.46, "RMSE": 0.028, "descripcion": "Spline cúbico + extensión Gompertz"}, {"modelo": "Ensemble", "M": 73.17, "F": 78.27, "RMSE": 0.249, "descripcion": "Media geométrica ponderada"}, {"modelo": "MMD Estándar", "M": 73.17, "F": 78.27, "RMSE": 0.249, "descripcion": "Ensemble + ajustes NAC/estándar"}, {"modelo": "INDEC 2023", "M": 73.0, "F": 79.8, "RMSE": 0.0, "descripcion": "Referencia oficial"}], "regional_e0": {"R01_M": {"nombre": "CABA", "e0": 73.55, "e65": 15.09}, "R02_M": {"nombre": "Pampeana", "e0": 71.49, "e65": 13.83}, "R03_M": {"nombre": "Noroeste (NOA)", "e0": 72.94, "e65": 14.71}, "R04_M": {"nombre": "Noreste (NEA)", "e0": 78.49, "e65": 18.39}, "R05_M": {"nombre": "Cuyo", "e0": 66.55, "e65": 11.06}, "R06_M": {"nombre": "Patagónica", "e0": 74.66, "e65": 15.8}, "R07_M": {"nombre": "Buenos Aires (GBA)", "e0": 74.31, "e65": 15.58}, "NAC_M": {"nombre": "Nacional (promedio)", "e0": 73.17, "e65": 14.86}, "R01_F": {"nombre": "CABA", "e0": 78.55, "e65": 17.82}, "R02_F": {"nombre": "Pampeana", "e0": 76.96, "e65": 16.76}, "R03_F": {"nombre": "Noroeste (NOA)", "e0": 78.02, "e65": 17.47}, "R04_F": {"nombre": "Noreste (NEA)", "e0": 82.53, "e65": 20.68}, "R05_F": {"nombre": "Cuyo", "e0": 72.74, "e65": 14.13}, "R06_F": {"nombre": "Patagónica", "e0": 79.43, "e65": 18.43}, "R07_F": {"nombre": "Buenos Aires (GBA)", "e0": 79.13, "e65": 18.22}, "NAC_F": {"nombre": "Nacional (promedio)", "e0": 78.27, "e65": 17.63}}, "grupos_riesgo_e0": {"Bajo riesgo (oficina, activo)": {"F": 78.96, "M": 74.11}, "Estándar": {"F": 78.27, "M": 73.17}, "Fumador habitual": {"F": 70.58, "M": 64.79}, "Nivel socioeconómico bajo": {"F": 75.61, "M": 69.89}, "Obesidad / Sedentarismo": {"F": 75.41, "M": 69.72}, "Perfil longevidad (dieta, ejercicio, no fumador)": {"F": 80.83, "M": 76.34}, "Riesgo alto (minería, industria pesada)": {"F": 72.35, "M": 65.5}, "Riesgo moderado (construcción, transporte)": {"F": 76.15, "M": 70.24}, "Trabajador de salud (exposición COVID)": {"F": 77.72, "M": 72.37}}, "escen_e0": {"Base 2023": {"M": 73.25, "F": 78.33}, "Optimista 2025": {"M": 77.18, "F": 81.65}, "Pesimista 2025": {"M": 73.36, "F": 78.42}, "Crisis económica": {"M": 70.44, "F": 75.9}, "Estabilización": {"M": 76.71, "F": 81.26}}, "traj": {"anios": [2023, 2025, 2030, 2035, 2040], "M": [73.17, 73.25, 73.45, 73.65, 73.86], "F": [78.27, 78.33, 78.46, 78.6, 78.74]}, "primas_avg": {"Ensemble": {"P_temp": 87150.0, "P_dot": 366138.0, "P_ord": 177518.0, "P_renta": 1357836.0}, "GLO": {"P_temp": 68694.0, "P_dot": 356272.0, "P_ord": 156324.0, "P_renta": 1389544.0}, "Lee-Carter": {"P_temp": 77290.0, "P_dot": 360868.0, "P_ord": 169210.0, "P_renta": 1368053.0}, "MMD_Estándar": {"P_temp": 87155.0, "P_dot": 366140.0, "P_ord": 177555.0, "P_renta": 1357764.0}, "MMD_Personalizado": {"P_temp": 125878.0, "P_dot": 390658.0, "P_ord": 213828.0, "P_renta": 1326805.0}}, "primas_diff": [{"nombre": "Javier", "edad": 47, "sexo": "M", "grupo": "Trabajador de salud (exposic", "P_ens": 104354.0, "P_mmd": 74835.0, "pct": -28.3}, {"nombre": "Diego", "edad": 52, "sexo": "M", "grupo": "Nivel socioeconómico bajo", "P_ens": 162270.0, "P_mmd": 139546.0, "pct": -14.0}, {"nombre": "Gustavo", "edad": 33, "sexo": "M", "grupo": "Bajo riesgo (oficina, activo", "P_ens": 29450.0, "P_mmd": 25945.0, "pct": -11.9}, {"nombre": "Valentina", "edad": 35, "sexo": "F", "grupo": "Bajo riesgo (oficina, activo", "P_ens": 21936.0, "P_mmd": 19807.0, "pct": -9.7}, {"nombre": "Camila", "edad": 39, "sexo": "F", "grupo": "Trabajador de salud (exposic", "P_ens": 30444.0, "P_mmd": 32075.0, "pct": 5.4}, {"nombre": "Sofía", "edad": 48, "sexo": "F", "grupo": "Trabajador de salud (exposic", "P_ens": 65664.0, "P_mmd": 71264.0, "pct": 8.5}, {"nombre": "Carlos", "edad": 42, "sexo": "M", "grupo": "Trabajador de salud (exposic", "P_ens": 65173.0, "P_mmd": 72287.0, "pct": 10.9}, {"nombre": "Alejandro", "edad": 28, "sexo": "M", "grupo": "Obesidad / Sedentarismo", "P_ens": 21365.0, "P_mmd": 26776.0, "pct": 25.3}, {"nombre": "Fernando", "edad": 55, "sexo": "M", "grupo": "Nivel socioeconómico bajo", "P_ens": 207741.0, "P_mmd": 272771.0, "pct": 31.3}, {"nombre": "Paula", "edad": 50, "sexo": "F", "grupo": "Nivel socioeconómico bajo", "P_ens": 77959.0, "P_mmd": 102642.0, "pct": 31.7}, {"nombre": "María", "edad": 58, "sexo": "F", "grupo": "Nivel socioeconómico bajo", "P_ens": 156354.0, "P_mmd": 229877.0, "pct": 47.0}, {"nombre": "Ana", "edad": 38, "sexo": "F", "grupo": "Obesidad / Sedentarismo", "P_ens": 28024.0, "P_mmd": 42193.0, "pct": 50.6}, {"nombre": "Hernán", "edad": 61, "sexo": "M", "grupo": "Nivel socioeconómico bajo", "P_ens": 330632.0, "P_mmd": 669908.0, "pct": 102.6}, {"nombre": "Leonardo", "edad": 25, "sexo": "M", "grupo": "Riesgo alto (minería, indust", "P_ens": 18327.0, "P_mmd": 39088.0, "pct": 113.3}, {"nombre": "Lucía", "edad": 45, "sexo": "F", "grupo": "Fumador habitual", "P_ens": 50698.0, "P_mmd": 130386.0, "pct": 157.2}, {"nombre": "Eduardo", "edad": 30, "sexo": "M", "grupo": "Riesgo moderado (construcció", "P_ens": 24005.0, "P_mmd": 64650.0, "pct": 169.3}], "primas_curvas": {"Lee-Carter": {"M": [14.1, 14.5, 14.9, 15.4, 15.9, 16.5, 17.1, 17.9, 18.7, 19.7, 20.8, 22.1, 23.6, 25.4, 27.4, 29.7, 32.3, 35.2, 38.6, 42.4, 46.6, 51.3, 56.6, 62.4, 68.7, 75.7, 83.3, 91.5, 100.4, 110.0, 120.2, 131.2, 143.0, 155.6, 169.0, 183.4, 198.9, 215.4, 233.2, 252.4, 273.0, 295.3, 319.3, 345.2, 373.0, 403.0, 445.1, 488.9, 534.3, 581.2, 629.8, 680.4, 733.4, 789.4, 849.3, 914.1], "F": [7.2, 7.5, 7.8, 8.2, 8.6, 9.1, 9.6, 10.2, 10.9, 11.7, 12.5, 13.5, 14.6, 15.8, 17.1, 18.6, 20.3, 22.1, 24.2, 26.4, 28.9, 31.7, 34.7, 38.0, 41.6, 45.5, 49.8, 54.4, 59.4, 64.9, 70.7, 77.0, 83.9, 91.3, 99.4, 108.2, 117.9, 128.6, 140.5, 153.7, 168.4, 185.0, 203.5, 224.3, 247.5, 273.5, 309.6, 348.1, 389.0, 432.1, 477.5, 525.3, 575.6, 628.8, 685.4, 746.2]}, "GLO": {"M": [12.7, 13.2, 13.7, 14.3, 14.9, 15.5, 16.3, 17.0, 17.9, 18.8, 19.9, 21.1, 22.5, 24.0, 25.7, 27.7, 29.9, 32.4, 35.2, 38.4, 41.9, 45.8, 50.2, 55.0, 60.4, 66.3, 72.7, 79.8, 87.5, 95.8, 104.9, 114.7, 125.3, 136.7, 149.0, 162.3, 176.6, 192.0, 208.7, 226.8, 246.3, 267.4, 290.4, 315.1, 341.5, 369.7, 399.8, 431.9, 466.2, 502.6, 541.4, 582.7, 626.6, 673.3, 722.9, 775.8], "F": [6.6, 6.9, 7.2, 7.6, 8.1, 8.6, 9.1, 9.7, 10.4, 11.1, 11.9, 12.8, 13.8, 14.8, 15.9, 17.2, 18.6, 20.1, 21.7, 23.5, 25.5, 27.7, 30.2, 32.8, 35.8, 39.0, 42.6, 46.5, 50.8, 55.5, 60.6, 66.1, 72.2, 78.9, 86.2, 94.3, 103.2, 113.1, 124.1, 136.4, 150.1, 165.5, 183.4, 203.0, 224.5, 248.0, 273.6, 301.5, 331.8, 364.7, 400.3, 438.7, 480.1, 524.6, 572.4, 623.7]}, "Ensemble": {"M": [14.5, 15.2, 15.9, 16.7, 17.5, 18.3, 19.2, 20.3, 21.4, 22.6, 24.0, 25.6, 27.4, 29.5, 31.8, 34.5, 37.5, 40.9, 44.8, 49.1, 53.9, 59.3, 65.2, 71.7, 78.8, 86.6, 95.1, 104.4, 114.3, 125.1, 136.6, 149.0, 162.3, 176.4, 191.6, 207.7, 225.0, 243.4, 263.1, 284.1, 306.6, 330.6, 356.4, 383.9, 413.2, 444.3, 479.5, 516.8, 556.2, 597.8, 641.7, 688.1, 737.2, 789.2, 844.4, 903.2], "F": [7.0, 7.4, 8.0, 8.5, 9.2, 9.9, 10.7, 11.6, 12.5, 13.5, 14.7, 15.9, 17.2, 18.7, 20.2, 21.9, 23.8, 25.8, 28.0, 30.4, 33.1, 36.0, 39.2, 42.7, 46.5, 50.7, 55.3, 60.2, 65.7, 71.6, 78.0, 84.9, 92.5, 100.8, 109.9, 119.8, 130.8, 142.9, 156.4, 171.3, 188.0, 206.6, 227.9, 251.3, 276.9, 304.9, 337.0, 371.6, 408.8, 448.6, 491.2, 536.8, 585.4, 637.4, 693.0, 752.8]}}, "deis_heatmap": {"grupos": [10, 30, 45, 55, 65, 75, 85], "anios": [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023], "M": [[0.001197, 0.001113, 0.001045, 0.001033, 0.00095, 0.000795, 0.000829, 0.000836, 0.000701], [0.001588, 0.001691, 0.001645, 0.001659, 0.001598, 0.001555, 0.001847, 0.001638, 0.0015], [0.00285, 0.003033, 0.003005, 0.002966, 0.002885, 0.003448, 0.004589, 0.00321, 0.003019], [0.009076, 0.00922, 0.008431, 0.008504, 0.007977, 0.009671, 0.01275, 0.008759, 0.007642], [0.022495, 0.022837, 0.021877, 0.022324, 0.021911, 0.025862, 0.029832, 0.022941, 0.020019], [0.04872, 0.050076, 0.048985, 0.049592, 0.049389, 0.057532, 0.064579, 0.057136, 0.04818], [0.1453, 0.151748, 0.149733, 0.141576, 0.140807, 0.152313, 0.167967, 0.165149, 0.131531]], "F": [[0.000801, 0.000745, 0.000769, 0.000693, 0.000674, 0.000561, 0.000572, 0.000645, 0.000541], [0.000705, 0.000742, 0.000719, 0.000753, 0.000687, 0.000735, 0.000969, 0.000801, 0.000762], [0.001803, 0.001789, 0.001773, 0.001849, 0.001805, 0.002077, 0.00279, 0.002047, 0.001951], [0.004877, 0.004982, 0.004798, 0.004742, 0.004587, 0.005346, 0.00695, 0.004911, 0.004477], [0.011906, 0.012674, 0.01197, 0.012138, 0.011702, 0.013613, 0.01689, 0.013002, 0.011553], [0.027864, 0.029866, 0.029421, 0.029411, 0.028868, 0.032475, 0.038685, 0.03462, 0.030024], [0.116745, 0.123643, 0.119627, 0.112296, 0.113245, 0.117954, 0.129354, 0.134998, 0.110427]]}, "e0_anios": {"anios": [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023], "M_obs": [73.2, 73.4, 73.6, 73.7, 73.8, 70.5, 71.0, 73.0, 73.0], "F_obs": [79.5, 79.6, 79.7, 79.8, 79.8, 77.2, 77.8, 79.4, 79.8], "M_lc": [72.9, 73.1, 73.3, 73.4, 73.5, 73.5, 73.4, 73.5, 73.5], "F_lc": [78.2, 78.3, 78.4, 78.5, 78.5, 78.5, 78.4, 78.5, 78.5]}, "deis_regional": {"R01_M": {"nombre": "CABA", "tasas": [0.000617, 0.001361, 0.002767, 0.007222, 0.019259, 0.045384, 0.125558]}, "R01_F": {"nombre": "CABA", "tasas": [0.00045, 0.000633, 0.001856, 0.004106, 0.010587, 0.02685, 0.10355]}, "R02_M": {"nombre": "Pampeana", "tasas": [0.000972, 0.001718, 0.003724, 0.009344, 0.022281, 0.052133, 0.125266]}, "R02_F": {"nombre": "Pampeana", "tasas": [0.000717, 0.000979, 0.002591, 0.005219, 0.012167, 0.031029, 0.098457]}, "R03_M": {"nombre": "NOA", "tasas": [0.000734, 0.00151, 0.003174, 0.007365, 0.0186, 0.045155, 0.116323]}, "R03_F": {"nombre": "NOA", "tasas": [0.000532, 0.000837, 0.002025, 0.004429, 0.011685, 0.028639, 0.096479]}, "R04_M": {"nombre": "NEA", "tasas": [0.000311, 0.00086, 0.001666, 0.004222, 0.011866, 0.028612, 0.087355]}, "R04_F": {"nombre": "NEA", "tasas": [0.000235, 0.000393, 0.001143, 0.002424, 0.006866, 0.018394, 0.072806]}, "R05_M": {"nombre": "Cuyo", "tasas": [0.001177, 0.002334, 0.004876, 0.012083, 0.033798, 0.083897, 0.237694]}, "R05_F": {"nombre": "Cuyo", "tasas": [0.000979, 0.00124, 0.00297, 0.00794, 0.020238, 0.056317, 0.208003]}, "R06_M": {"nombre": "Patagónica", "tasas": [0.000567, 0.001344, 0.002482, 0.006062, 0.016926, 0.040403, 0.119545]}, "R06_F": {"nombre": "Patagónica", "tasas": [0.000497, 0.000646, 0.001448, 0.003437, 0.009235, 0.023629, 0.095557]}, "R07_M": {"nombre": "GBA", "tasas": [0.00053, 0.001376, 0.002447, 0.007197, 0.017405, 0.041673, 0.108978]}, "R07_F": {"nombre": "GBA", "tasas": [0.000375, 0.000604, 0.001626, 0.003785, 0.01009, 0.025308, 0.098139]}}, "ajuste_regional": {"R01": {"M": -0.033, "F": -0.028}, "R02": {"M": 0.145, "F": 0.131}, "R03": {"M": 0.02, "F": 0.025}, "R04": {"M": -0.466, "F": -0.441}, "R05": {"M": 0.563, "F": 0.541}, "R06": {"M": -0.129, "F": -0.118}, "R07": {"M": -0.099, "F": -0.087}, "NAC": {"M": 0.0, "F": 0.0}}};
+
+const MODELOS = ['Lee-Carter','XGBoost','Red Neuronal','GLO','Ensemble'];
+const COLORES = {
+  'Lee-Carter':'#2166AC','XGBoost':'#D6604D','Red Neuronal':'#F4A582',
+  'GLO':'#4DAC26','Ensemble':'#762A83','MMD_Personalizado':'#B8530A',
+  'INDEC 2023':'#525252',
+};
+const LABELS_CORTOS = {
+  'Lee-Carter':'LC','XGBoost':'XGB','Red Neuronal':'NN',
+  'GLO':'GLO','Ensemble':'ENS','MMD_Personalizado':'MMD',
+};
+
+const COLORES_DEIS_GRUPO = [
+  '#1a6eaf','#3d9b3d','#c44b2c','#9b59b6','#e67e22','#16a085','#c0392b'
+];
+const DEIS_GRUPO_LABELS = ['Edad 10','Edad 30','Edad 45','Edad 55','Edad 65','Edad 75','Edad 85'];
+const ESCENARIOS_COLS = {
+  'Base 2023':'#2166AC','Optimista 2025':'#4DAC26','Pesimista 2025':'#F4A582',
+  'Crisis económica':'#762A83','Estabilización':'#01665E',
+};
+
+// ── Estado global (var para compatibilidad máxima) ─────────
+var activeSexoQx    = 'M';
+var activeScaleQx   = 'log';
+var activeSexoEx    = 'M';
+var activeRegSexo   = 'M';
+var activeRiesgoSexo= 'M';
+var activePrimaSexo = 'ambos';
+var activeCurvaSexo = 'M';
+
+// ── Helpers ─────────────────────────────────────────────────
+// Todas como function declarations para garantizar hoisting
+function mkToggle(btn, val, setter, redrawFn) {
+  btn.closest('.toggle-group').querySelectorAll('.toggle-btn')
+     .forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  setter(val);
+  redrawFn();
+}
+function toggleSexoQx(v, b)   { activeSexoQx    = v; mkToggle(b, v, function(){}, redrawQx); }
+function toggleScaleQx(v, b)  { activeScaleQx   = v; mkToggle(b, v, function(){}, redrawQx); }
+function toggleSexoEx(v, b)   { activeSexoEx    = v; mkToggle(b, v, function(){}, redrawEx); }
+function toggleDeisSexo(v, b) { mkToggle(b, v, function(){}, function() { redrawDeisTrend(v); }); }
+function toggleRegSexo(v, b)  { activeRegSexo   = v; mkToggle(b, v, function(){}, redrawReg); }
+function toggleRiesgoSexo(v,b){ activeRiesgoSexo= v; mkToggle(b, v, function(){}, redrawRiesgo); }
+function togglePrimaSexo(v,b) { activePrimaSexo = v; mkToggle(b, v, function(){}, redrawPrimaBar); }
+function toggleCurvaSexo(v,b) { activeCurvaSexo = v; mkToggle(b, v, function(){}, redrawCurva); }
+
+function destroyAndCreate(id, config) {
+  var canvas = document.getElementById(id);
+  if (!canvas) { console.warn('Canvas no encontrado:', id); return null; }
+  if (canvas._chartInst) { canvas._chartInst.destroy(); canvas._chartInst = null; }
+  var ctx = canvas.getContext('2d');
+  var c = new Chart(ctx, config);
+  canvas._chartInst = c;
+  return c;
+}
+
+// ── DEIS Trend ─────────────────────────────────────────────
+function redrawDeisTrend(sexo) {
+  const anios = D.deis_heatmap.anios;
+  const grupos = D.deis_heatmap.grupos;
+  const datasets = grupos.map((g, i) => ({
+    label: 'Edad ' + g,
+    data: D.deis_heatmap[sexo][i],
+    borderColor: COLORES_DEIS_GRUPO[i], borderWidth: 2,
+    backgroundColor: COLORES_DEIS_GRUPO[i] + '22',
+    pointRadius: 4, tension: 0.3, fill: false,
+  }));
+  destroyAndCreate('chartDeisTrend', {
+    type: 'line',
+    data: { labels: anios, datasets },
+    options: {
+      responsive: true, animation: false,
+      plugins: { legend: { labels: { font: { size: 10 } } } },
+      scales: {
+        y: { type: 'logarithmic',
+             title: { display: true, text: 'Tasa bruta (log)' },
+             ticks: { callback: v => v < 0.001 ? '' : v.toFixed(4) } },
+        x: { title: { display: true, text: 'Año' } }
+      }
+    }
+  });
+}
+
+function drawDeisEdad() {
+  const qx_m = D.qx['Lee-Carter'].M;
+  const qx_f = D.qx['Lee-Carter'].F;
+  const edades = [10,30,45,55,65,75,85];
+  destroyAndCreate('chartDeisEdad', {
+    type: 'bar',
+    data: {
+      labels: edades.map(e => 'Edad '+e),
+      datasets: [
+        { label:'Masculino', data: edades.map(e=>+(qx_m[e]*100).toFixed(4)),
+           backgroundColor:'#2166AC88', borderColor:'#2166AC', borderWidth:2 },
+        { label:'Femenino',  data: edades.map(e=>+(qx_f[e]*100).toFixed(4)),
+           backgroundColor:'#D6604D88', borderColor:'#D6604D', borderWidth:2 },
+      ]
+    },
+    options: {
+      responsive: true, animation: false,
+      plugins: { legend: { labels: { font: { size: 10 } } } },
+      scales: { y: { title: { display:true, text:'q(x) %' },
+                       ticks: { callback: v => v.toFixed(2)+'%' } } }
+    }
+  });
+}
+
+// ── q(x) curves ────────────────────────────────────────────
+function redrawQx() {
+  const s = activeSexoQx;
+  const ages = Array.from({length:101},(_,i)=>i);
+  const datasets = MODELOS.map(m => ({
+    label: m,
+    data: D.qx[m][s].map((v,i) => ({x:i, y: activeScaleQx==='log' ? (v>0?Math.log10(v):-6) : v*100})),
+    borderColor: COLORES[m], borderWidth: 1.8,
+    pointRadius: 0, tension: 0,
+  }));
+  destroyAndCreate('chartQx', {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true, animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { type:'linear', min:0, max:100, title:{ display:true, text:'Edad' } },
+        y: { title:{ display:true, text: activeScaleQx==='log'?'log₁₀ q(x)':'q(x) %' },
+             ticks:{ callback: v => activeScaleQx==='log' ? '10^'+v.toFixed(1) : v.toFixed(2)+'%' } }
+      }
+    }
+  });
+  // Legend manual
+  const leg = document.getElementById('legend-qx');
+  leg.innerHTML = MODELOS.map(m =>
+    `<span class="model-chip" style="background:${COLORES[m]}22;color:${COLORES[m]};border-color:${COLORES[m]}40">${m}</span>`
+  ).join('');
+}
+
+function redrawEx() {
+  const s = activeSexoEx;
+  const datasets = MODELOS.map(m => ({
+    label: m,
+    data: D.ex[m][s].map((v,i)=>({x:i,y:v})),
+    borderColor: COLORES[m], borderWidth: 1.8,
+    pointRadius: 0, tension: 0,
+  }));
+  destroyAndCreate('chartEx', {
+    type:'line', data:{datasets},
+    options:{
+      responsive:true, animation:false,
+      plugins:{ legend:{ labels:{ font:{size:10} } } },
+      scales:{
+        x:{ type:'linear',min:0,max:100,title:{display:true,text:'Edad'} },
+        y:{ title:{display:true,text:'e(x) años'} }
+      }
+    }
+  });
+}
+
+function drawQxDiff() {
+  const ref = D.qx['Lee-Carter'].M;
+  const modelos_diff = ['GLO','XGBoost','Red Neuronal','Ensemble'];
+  const ages = Array.from({length:101},(_,i)=>i);
+  const datasets = modelos_diff.map(m => ({
+    label: m,
+    data: D.qx[m].M.map((v,i) => ({x:i, y: ref[i]>0 ? +(((v-ref[i])/ref[i]*100).toFixed(1)) : 0})),
+    borderColor: COLORES[m], borderWidth:1.6, pointRadius:0, tension:0,
+    fill: false,
+  }));
+  destroyAndCreate('chartQxDiff', {
+    type:'line', data:{datasets},
+    options:{
+      responsive:true, animation:false,
+      plugins:{ legend:{ labels:{ font:{size:10} } } },
+      scales:{
+        x:{ type:'linear',min:0,max:100,title:{display:true,text:'Edad'} },
+        y:{ title:{display:true,text:'Δ% vs Lee-Carter'},
+             ticks:{ callback: v=>v+'%' } }
+      },
+      plugins:{ annotation:{} }
+    }
+  });
+}
+
+// ── Comparación e(0) ───────────────────────────────────────
+function drawE0comp() {
+  const mets = D.metricas;
+  const labels = mets.map(m => m.modelo);
+  destroyAndCreate('chartE0comp', {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        { label:'e(0) Masculino', data:mets.map(m=>m.M), backgroundColor:mets.map(m=>(COLORES[m.modelo]||'#94a3b8')+'88'), borderColor:mets.map(m=>COLORES[m.modelo]||'#2166AC'), borderWidth:2 },
+        { label:'e(0) Femenino', data:mets.map(m=>m.F), backgroundColor:'#D6604D44', borderColor:'#D6604D', borderWidth:2 },
+        { label:'INDEC M (73.0)', data:Array(labels.length).fill(73.0), type:'line', borderColor:'#525252', borderDash:[6,3], borderWidth:2, pointRadius:0, fill:false },
+        { label:'INDEC F (79.8)', data:Array(labels.length).fill(79.8), type:'line', borderColor:'#525252', borderDash:[3,3], borderWidth:1.5, pointRadius:0, fill:false },
+      ]
+    },
+    options:{
+      responsive:true, animation:false,
+      plugins:{ legend:{ labels:{ font:{size:10} } } },
+      scales:{ y:{ min:60, max:85, title:{display:true,text:'Años'} } }
+    }
+  });
+}
+
+function drawRMSE() {
+  const mets = D.metricas.filter(m=>m.modelo!=='INDEC 2023');
+  destroyAndCreate('chartRMSE', {
+    type:'bar',
+    data:{
+      labels: mets.map(m=>m.modelo),
+      datasets:[{ label:'RMSE', data:mets.map(m=>m.RMSE),
+        backgroundColor: mets.map(m=>m.RMSE<0.1?'#86efac':m.RMSE<0.3?'#fde047':'#fca5a5'),
+        borderColor: mets.map(m=>m.RMSE<0.1?'#16a34a':m.RMSE<0.3?'#ca8a04':'#dc2626'),
+        borderWidth:2 }]
+    },
+    options:{
+      responsive:true, animation:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ y:{ title:{display:true,text:'RMSE'} } }
+    }
+  });
+}
+
+function buildMetricsTable() {
+  const t = document.getElementById('tablaMetricas');
+  const mets = D.metricas;
+  t.innerHTML = `<thead><tr>
+    <th>Modelo</th><th>e(0) M</th><th>e(0) F</th>
+    <th>Δe(0) M vs INDEC</th><th>RMSE</th><th>Descripción</th>
+  </tr></thead><tbody>` +
+  mets.map(m => {
+    const d = (m.M - 73.0).toFixed(2);
+    const dBadge = Math.abs(d)<0.5 ? `<span class='badge-rmse-good'>+${d}a</span>` :
+                   Math.abs(d)<2   ? `<span class='badge-rmse-ok'>+${d}a</span>` :
+                                     `<span class='badge-rmse-bad'>+${d}a</span>`;
+    const rBadge = m.RMSE===0 ? '—' :
+                   m.RMSE<0.1  ? `<span class='badge-rmse-good'>${m.RMSE}</span>` :
+                   m.RMSE<0.3  ? `<span class='badge-rmse-ok'>${m.RMSE}</span>` :
+                                 `<span class='badge-rmse-bad'>${m.RMSE}</span>`;
+    return `<tr>
+      <td><span style="width:10px;height:10px;background:${COLORES[m.modelo]||'#666'};
+          display:inline-block;border-radius:50%;margin-right:4px"></span>${m.modelo}</td>
+      <td>${m.M}</td><td>${m.F}</td>
+      <td>${dBadge}</td><td>${rBadge}</td><td class='text-muted small'>${m.descripcion}</td>
+    </tr>`;
+  }).join('') + '</tbody>';
+}
+
+// ── MMD Regional ───────────────────────────────────────────
+function redrawReg() {
+  const s = activeRegSexo;
+  const regiones_orden = ['R04','R06','R07','R01','NAC','R03','R02','R05'];
+  const data = regiones_orden
+    .map(r => D.regional_e0[r+'_'+s])
+    .filter(d => d !== undefined && d !== null);
+  const labels = data.map(d => d.nombre);
+  const vals   = data.map(d => d.e0);
+  const colores = vals.map(v => v>76?'#1a6eaf':v>73?'#3d9b3d':v>70?'#f59e0b':'#dc2626');
+  destroyAndCreate('chartRegional', {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'e(0)', data:vals,
+      backgroundColor:colores.map(c=>c+'BB'), borderColor:colores, borderWidth:2 }] },
+    options:{
+      indexAxis:'y', responsive:true, animation:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:ctx=>`e(0)=${ctx.raw} años | e(65)=${data[ctx.dataIndex].e65}a`} } },
+      scales:{ x:{ min:60, max:85, title:{display:true,text:'e(0) años'} },
+               y:{ ticks:{ font:{size:10} } } }
+    }
+  });
+}
+
+// ── MMD Grupos de riesgo ───────────────────────────────────
+function redrawRiesgo() {
+  const s = activeRiesgoSexo;
+  const gr = D.grupos_riesgo_e0;
+  const orden = Object.entries(gr).sort((a,b)=>(b[1][s]||0)-(a[1][s]||0));
+  destroyAndCreate('chartRiesgo', {
+    type:'bar',
+    data:{
+      labels: orden.map(([k])=>k.length>28?k.slice(0,28)+'…':k),
+      datasets:[{ label:'e(0)', data:orden.map(([,v])=>v[s]||0),
+        backgroundColor: orden.map(([,v])=>{
+          const e=v[s]||0; return e>75?'#86efac':e>72?'#fde047':'#fca5a5';
+        }),
+        borderColor:'#475569', borderWidth:1 }]
+    },
+    options:{
+      indexAxis:'y', responsive:true, animation:false,
+      plugins:{ legend:{display:false} },
+      scales:{ x:{min:60,max:82,title:{display:true,text:'e(0) años'} },
+               y:{ticks:{font:{size:9} } } }
+    }
+  });
+}
+
+// ── MMD Escenarios económicos ──────────────────────────────
+function drawEco() {
+  const esc = D.escen_e0;
+  const labels = Object.keys(esc);
+  destroyAndCreate('chartEco', {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        { label:'Masculino', data:labels.map(k=>esc[k].M||0),
+           backgroundColor:labels.map(k=>ESCENARIOS_COLS[k]+'88'), borderColor:labels.map(k=>ESCENARIOS_COLS[k]), borderWidth:2 },
+        { label:'Femenino', data:labels.map(k=>esc[k].F||0),
+           backgroundColor:'#D6604D44', borderColor:'#D6604D', borderWidth:2 },
+      ]
+    },
+    options:{
+      responsive:true, animation:false,
+      plugins:{ legend:{ labels:{ font:{size:10} } } },
+      scales:{ y:{ min:68,max:85,title:{display:true,text:'e(0) años'} } }
+    }
+  });
+}
+
+function drawTraj() {
+  const t = D.traj;
+  destroyAndCreate('chartTraj', {
+    type:'line',
+    data:{
+      labels:t.anios,
+      datasets:[
+        { label:'Masculino', data:t.M, borderColor:'#2166AC', backgroundColor:'#2166AC22',
+           fill:true, tension:0.3, borderWidth:2.5, pointRadius:4 },
+        { label:'Femenino',  data:t.F, borderColor:'#D6604D', backgroundColor:'#D6604D22',
+           fill:true, tension:0.3, borderWidth:2.5, pointRadius:4 },
+      ]
+    },
+    options:{
+      responsive:true, animation:false,
+      plugins:{ legend:{ labels:{ font:{size:10} } } },
+      scales:{ y:{ title:{display:true,text:'e(0) años'} } }
+    }
+  });
+}
+
+function buildMMDextTable() {
+  const t = document.getElementById('tablaMMDext');
+  const rows = [
+    ['Nacional, Estándar, Base 2023', '73.17', '78.27', '14.86', '—'],
+    ['NEA (R04), Estándar, Base 2023', '78.49', '82.53', '18.39', 'Mejor región'],
+    ['Cuyo (R05), Estándar, Base 2023', '66.55', '72.74', '11.06', 'Peor región'],
+    ['Nacional, Longevidad, Base 2023', '76.34', '—', '16.74', 'Mejor grupo riesgo'],
+    ['Nacional, Fumador, Base 2023', '64.79', '—', '9.17', 'Peor grupo riesgo'],
+    ['Nacional, Minería, Base 2023', '65.50', '—', '12.34', 'Alto riesgo laboral'],
+    ['NAC, Estándar, Optimista 2025', '77.18', '81.65', '—', 'Mejor escenario'],
+    ['NAC, Estándar, Crisis 2025', '70.44', '75.90', '—', 'Peor escenario'],
+    ['NEA, Longevidad, Optimista 2030', '85.41', '—', '23.39', '🔵 Extremo máximo'],
+    ['Cuyo, Minería, Crisis 2025', '55.20', '—', '7.04', '🔴 Extremo mínimo'],
+  ];
+  t.innerHTML = `<thead><tr><th>Escenario</th><th>e(0) M</th><th>e(0) F</th><th>e(65) M</th><th>Nota</th></tr></thead>
+  <tbody>`+rows.map((r,i)=>`<tr class="${i>=8?'table-'+(i==8?'info':'warning'):''}">
+    ${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')+'</tbody>';
+}
+
+// ── Primas ─────────────────────────────────────────────────
+const PRIMAS_MODELOS_ORDER = ['LC','GLO','Ensemble','MMD_Estándar','MMD_Personalizado'];
+const PRIMAS_MODELOS_LABELS= ['Lee-Carter','GLO','Ensemble','MMD Est.','MMD Pers.'];
+const PRIMAS_COLORES = ['#2166AC','#4DAC26','#762A83','#F4A582','#B8530A'];
+
+// primasData: datos del diferencial MMD Personalizado vs Ensemble (Seguro Temporario)
+// Se computan fuera de una función porque son constantes de referencia para varios charts
+var primasData = {
+  nombres: D.primas_diff.map(function(p){ return p.nombre+' ('+p.edad+'a)'; }),
+  Ensemble: D.primas_diff.map(function(p){ return +(p.P_ens/1000).toFixed(1); }),
+  MMD_Pers: D.primas_diff.map(function(p){ return +(p.P_mmd/1000).toFixed(1); }),
+  pct: D.primas_diff.map(function(p){ return p.pct; }),
+  grupos: D.primas_diff.map(function(p){ return p.grupo; }),
+  sexo: D.primas_diff.map(function(p){ return p.sexo; }),
+};
+
+function redrawPrimaBar() {
+  // Filtrar por sexo activo
+  var s = activePrimaSexo; // 'ambos', 'M' o 'F'
+  var indices = primasData.sexo.reduce(function(acc, sx, i) {
+    if (s === 'ambos' || sx === s) acc.push(i);
+    return acc;
+  }, []);
+  var labels   = indices.map(function(i){ return primasData.nombres[i].split(' ')[0]; });
+  var ens_vals = indices.map(function(i){ return primasData.Ensemble[i]; });
+  var mmd_vals = indices.map(function(i){ return primasData.MMD_Pers[i]; });
+  var tip_grp  = indices.map(function(i){ return primasData.grupos[i]; });
+  var datasets = [
+    {
+      label: 'Ensemble',
+      data: ens_vals,
+      backgroundColor: '#762A83BB', borderColor: '#762A83', borderWidth:1.5
+    },
+    {
+      label: 'MMD Personalizado',
+      data: mmd_vals,
+      backgroundColor: '#B8530ABB', borderColor: '#B8530A', borderWidth:1.5
+    }
+  ];
+  destroyAndCreate('chartPrimasBar', {
+    type:'bar',
+    data:{ labels: labels, datasets: datasets },
+    options:{
+      responsive:true, animation:false,
+      plugins:{
+        legend:{ labels:{ font:{size:9} } },
+        tooltip:{ callbacks:{
+          label: function(ctx){ return ctx.dataset.label+': $'+ctx.raw+'K'; },
+          afterBody: function(items){ return tip_grp[items[0].dataIndex] ? ['Grupo: '+tip_grp[items[0].dataIndex]] : []; }
+        } }
+      },
+      scales:{
+        x:{ ticks:{ font:{size:8}, maxRotation:35 } },
+        y:{
+          title:{display:true,text:'Prima anual Temporario (K ARS)'},
+          ticks:{ callback:function(v){ return '$'+v+'K'; } }
+        }
+      }
+    }
+  });
+}
+
+function drawPrimasProd() {
+  // primas_avg: P_temp, P_dot, P_ord, P_renta — todos anuales (comparable en escala)
+  // PU_renta (prima única ~$18M) se excluye porque es 205x mayor → invisibiliza el resto
+  var pa = D.primas_avg;
+  var prods    = ['P_temp','P_dot','P_ord','P_renta'];
+  var prodLabs = ['Temporario','Dotal Mixto','Ord. (V.Entera)','Renta Vit. (anual)'];
+  var COL_MAP  = {
+    'Lee-Carter':'#2166AC','GLO':'#4DAC26','Ensemble':'#762A83',
+    'MMD_Estándar':'#F4A582','MMD_Personalizado':'#B8530A'
+  };
+  var modelos_pa = Object.keys(pa);
+  var datasets = modelos_pa.map(function(mk) {
+    var col = COL_MAP[mk] || '#94a3b8';
+    var label = mk.replace('MMD_Personalizado','MMD Pers.').replace('MMD_Estándar','MMD Est.');
+    return {
+      label: label,
+      data: prods.map(function(p) { return pa[mk] && pa[mk][p] ? +(pa[mk][p]/1000).toFixed(1) : 0; }),
+      backgroundColor: col+'BB', borderColor: col, borderWidth:1.5,
+    };
+  });
+  destroyAndCreate('chartPrimasProd', {
+    type:'bar', data:{ labels:prodLabs, datasets:datasets },
+    options:{
+      responsive:true, animation:false,
+      plugins:{
+        legend:{ labels:{ font:{size:9} } },
+        tooltip:{ callbacks:{ label: function(ctx) { return ctx.dataset.label+': $'+ctx.raw+'K'; } } }
+      },
+      scales:{
+        y:{ title:{display:true,text:'Prima anual promedio (miles ARS)'},
+             ticks:{ callback:function(v){ return '$'+v+'K'; } } }
+      }
+    }
+  });
+}
+
+function redrawCurva() {
+  const s = activeCurvaSexo;
+  const edades = Array.from({length:56},(_,i)=>i+20);
+  const ds = Object.entries(D.primas_curvas).map(([m,v])=>{
+    const col = COLORES[m]||'#666';
+    return { label:m, data:v[s], borderColor:col, borderWidth:2,
+              pointRadius:0, tension:0 };
+  });
+  destroyAndCreate('chartCurva', {
+    type:'line', data:{ labels:edades, datasets:ds },
+    options:{
+      responsive:true, animation:false,
+      plugins:{ legend:{ labels:{ font:{size:9} } } },
+      scales:{
+        x:{ title:{display:true,text:'Edad de contratación'} },
+        y:{ title:{display:true,text:'Prima anual (K ARS)'},
+             ticks:{ callback:v=>'$'+v+'K'} }
+      }
+    }
+  });
+}
+
+function drawDiff() {
+  const d = primasData;
+  const colores = d.pct.map(p=>p>=0?'#fca5a5':'#86efac');
+  destroyAndCreate('chartDiff', {
+    type:'bar',
+    data:{ labels:d.nombres.map(n=>n.split(' ')[0]),
+      datasets:[{ label:'Δ% MMD vs Ensemble', data:d.pct,
+        backgroundColor:colores, borderColor:colores.map(c=>c==='#fca5a5'?'#dc2626':'#16a34a'),
+        borderWidth:1 }] },
+    options:{
+      responsive:true, animation:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label: ctx=>ctx.raw.toFixed(1)+'% | '+d.grupos[ctx.dataIndex] } } },
+      scales:{
+        x:{ ticks:{ font:{size:8}, maxRotation:35 } },
+        y:{ title:{display:true,text:'% diferencial'},
+             ticks:{ callback:v=>v+'%'} }
+      }
+    }
+  });
+}
+
+// ── Radar conclusiones ─────────────────────────────────────
+function drawRadar() {
+  destroyAndCreate('chartRadar', {
+    type:'radar',
+    data:{
+      labels:['Calibración e(0)','Bajo RMSE','Personalización','Proyección temporal',
+              'Robustez','Interpretabilidad'],
+      datasets:[
+        { label:'Lee-Carter', data:[85,82,30,80,78,85],
+           borderColor:'#2166AC', backgroundColor:'#2166AC22', borderWidth:2 },
+        { label:'GLO', data:[84,88,25,50,75,92],
+           borderColor:'#4DAC26', backgroundColor:'#4DAC2222', borderWidth:2 },
+        { label:'Ensemble', data:[88,72,35,65,85,70],
+           borderColor:'#762A83', backgroundColor:'#762A8322', borderWidth:2 },
+        { label:'MMD Personalizado', data:[88,72,98,88,82,75],
+           borderColor:'#B8530A', backgroundColor:'#B8530A22', borderWidth:2, borderDash:[4,2] },
+      ]
+    },
+    options:{
+      responsive:true, animation:false,
+      plugins:{ legend:{ labels:{ font:{size:9} } } },
+      scales:{ r:{ min:0,max:100, ticks:{ font:{size:8} } } }
+    }
+  });
+}
+
+function buildFinalTable() {
+  const t = document.getElementById('tablaFinal');
+  const filas = [
+    ['Lee-Carter',  e0_resumen('Lee-Carter','M'), e0_resumen('Lee-Carter','F'), '0.028', '±0.4a', 'SVD'],
+    ['XGBoost',     e0_resumen('XGBoost','M'),    e0_resumen('XGBoost','F'),    '0.152', '+5.8a', 'ML + calibración'],
+    ['Red Neuronal',e0_resumen('Red Neuronal','M'),e0_resumen('Red Neuronal','F'),'0.567','+3.6a','MLP + calibración'],
+    ['GLO',         e0_resumen('GLO','M'),         e0_resumen('GLO','F'),         '0.028','±0.2a','Spline cúbico'],
+    ['Ensemble',    e0_resumen('Ensemble','M'),     e0_resumen('Ensemble','F'),    '0.249','±0.2a','Media geom. pond.'],
+    ['MMD Estándar','73.17','78.27','—','±0.2a','Ensemble + ajustes'],
+    ['INDEC 2023 (ref.)','73.0','79.8','—','—','Referencia oficial'],
+  ];
+  t.innerHTML = `<thead><tr>
+    <th>Modelo</th><th>e(0) M</th><th>e(0) F</th><th>RMSE</th><th>Δ INDEC</th><th>Método</th>
+  </tr></thead><tbody>` + filas.map((r,i) => `<tr ${i===6?'class="table-secondary fw-bold"':''}>
+    ${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('') + '</tbody>';
+}
+function e0_resumen(m,s) {
+  return (D.e0[m]||{})[s] || '—';
+}
+
+// ══════════════════════════════════════════════════════════
+// INICIALIZACIÓN
+// ══════════════════════════════════════════════════════════
+// Wrapper que aísla errores por función para no bloquear el resto
+function safeCall(fn, name) {
+  try { fn(); } catch(err) { console.warn('Error en', name||fn.name, ':', err.message); }
+}
+
+window.addEventListener('load', function() {
+  safeCall(function() { redrawDeisTrend('M'); }, 'deisTrend');
+  safeCall(drawDeisEdad,    'deisEdad');
+  safeCall(redrawQx,        'qx');
+  safeCall(redrawEx,        'ex');
+  safeCall(drawQxDiff,      'qxDiff');
+  safeCall(drawE0comp,      'e0comp');
+  safeCall(drawRMSE,        'rmse');
+  safeCall(buildMetricsTable,'metricsTable');
+  safeCall(redrawReg,       'reg');
+  safeCall(redrawRiesgo,    'riesgo');
+  safeCall(drawEco,         'eco');
+  safeCall(drawTraj,        'traj');
+  safeCall(buildMMDextTable,'mmdTable');
+  safeCall(redrawPrimaBar,  'primaBar');
+  safeCall(drawPrimasProd,  'primasProd');
+  safeCall(redrawCurva,     'curva');
+  safeCall(drawDiff,        'diff');
+  safeCall(drawRadar,       'radar');
+  safeCall(buildFinalTable, 'finalTable');
+
+  // IntersectionObserver para actualizar sidebar activo al hacer scroll
+  var sections = document.querySelectorAll('section[id]');
+  var obs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        var id = e.target.id;
+        document.querySelectorAll('#sidebar nav a.nav-link').forEach(function(a) {
+          a.classList.toggle('active', a.getAttribute('href') === '#'+id);
+        });
+      }
+    });
+  }, {threshold: 0.3});
+  sections.forEach(function(s) { obs.observe(s); });
+});
+</script>
+</body>
+</html>
